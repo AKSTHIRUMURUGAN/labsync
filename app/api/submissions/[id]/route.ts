@@ -7,7 +7,7 @@ import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireAuth(request);
   
@@ -16,10 +16,11 @@ export async function GET(
   }
 
   try {
+    const { id } = await params;
     const db = await getDatabase();
     const submission = await db
       .collection<Submission>('submissions')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     if (!submission) {
       return notFoundError('Submission not found');
@@ -42,7 +43,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireAuth(request);
   
@@ -51,12 +52,13 @@ export async function PUT(
   }
 
   try {
+    const { id } = await params;
     const body = await request.json();
     const db = await getDatabase();
 
     const submission = await db
       .collection<Submission>('submissions')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     if (!submission) {
       return notFoundError('Submission not found');
@@ -91,7 +93,7 @@ export async function PUT(
     await db
       .collection<Submission>('submissions')
       .updateOne(
-        { _id: new ObjectId(params.id), version: submission.version },
+        { _id: new ObjectId(id), version: submission.version },
         {
           $set: {
             ...body,
@@ -104,7 +106,7 @@ export async function PUT(
 
     const updatedSubmission = await db
       .collection<Submission>('submissions')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     return successResponse(updatedSubmission);
   } catch (error) {

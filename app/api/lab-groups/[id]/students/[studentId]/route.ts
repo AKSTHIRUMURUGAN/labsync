@@ -7,7 +7,7 @@ import { ObjectId } from 'mongodb';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; studentId: string } }
+  { params }: { params: Promise<{ id: string; studentId: string }> }
 ) {
   const authResult = await requireRole(request, ['lab_faculty', 'hod', 'principal']);
   
@@ -16,10 +16,11 @@ export async function DELETE(
   }
 
   try {
+    const { id, studentId } = await params;
     const db = await getDatabase();
     const labGroup = await db
       .collection<LabGroup>('labGroups')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     if (!labGroup) {
       return notFoundError('Lab group not found');
@@ -28,16 +29,16 @@ export async function DELETE(
     await db
       .collection<LabGroup>('labGroups')
       .updateOne(
-        { _id: new ObjectId(params.id) },
+        { _id: new ObjectId(id) },
         {
-          $pull: { students: new ObjectId(params.studentId) },
+          $pull: { students: new ObjectId(studentId) },
           $set: { updatedAt: new Date() },
         }
       );
 
     const updatedLabGroup = await db
       .collection<LabGroup>('labGroups')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     return successResponse(updatedLabGroup);
   } catch (error) {

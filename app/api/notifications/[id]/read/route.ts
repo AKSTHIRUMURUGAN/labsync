@@ -7,7 +7,7 @@ import { ObjectId } from 'mongodb';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireAuth(request);
   
@@ -16,10 +16,11 @@ export async function PUT(
   }
 
   try {
+    const { id } = await params;
     const db = await getDatabase();
     const notification = await db
       .collection<Notification>('notifications')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     if (!notification) {
       return notFoundError('Notification not found');
@@ -32,13 +33,13 @@ export async function PUT(
     await db
       .collection<Notification>('notifications')
       .updateOne(
-        { _id: new ObjectId(params.id) },
+        { _id: new ObjectId(id) },
         { $set: { read: true } }
       );
 
     const updatedNotification = await db
       .collection<Notification>('notifications')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     return successResponse(updatedNotification);
   } catch (error) {

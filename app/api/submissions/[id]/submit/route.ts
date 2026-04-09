@@ -8,7 +8,7 @@ import { ObjectId } from 'mongodb';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireAuth(request);
   
@@ -17,10 +17,11 @@ export async function POST(
   }
 
   try {
+    const { id } = await params;
     const db = await getDatabase();
     const submission = await db
       .collection<Submission>('submissions')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     if (!submission) {
       return notFoundError('Submission not found');
@@ -50,7 +51,7 @@ export async function POST(
     await db
       .collection<Submission>('submissions')
       .updateOne(
-        { _id: new ObjectId(params.id) },
+        { _id: new ObjectId(id) },
         {
           $set: {
             status: 'submitted',
@@ -72,7 +73,7 @@ export async function POST(
         type: 'pending_review',
         title: 'New Submission for Review',
         message: 'A student has submitted lab work for your review.',
-        relatedEntityId: params.id,
+        relatedEntityId: id,
         relatedEntityType: 'submission',
         read: false,
         createdAt: new Date(),
@@ -82,7 +83,7 @@ export async function POST(
 
     const updatedSubmission = await db
       .collection<Submission>('submissions')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     return successResponse(updatedSubmission);
   } catch (error) {

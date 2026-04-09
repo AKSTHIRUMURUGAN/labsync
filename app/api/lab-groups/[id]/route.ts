@@ -7,7 +7,7 @@ import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireRole(request, ['lab_faculty', 'faculty_coordinator', 'hod', 'principal', 'student']);
   
@@ -16,10 +16,11 @@ export async function GET(
   }
 
   try {
+    const { id } = await params;
     const db = await getDatabase();
     const labGroup = await db
       .collection<LabGroup>('labGroups')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     if (!labGroup) {
       return notFoundError('Lab group not found');
@@ -34,7 +35,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireRole(request, ['lab_faculty', 'hod', 'principal']);
   
@@ -43,6 +44,7 @@ export async function PUT(
   }
 
   try {
+    const { id } = await params;
     const body = await request.json();
     const db = await getDatabase();
 
@@ -65,13 +67,13 @@ export async function PUT(
     await db
       .collection<LabGroup>('labGroups')
       .updateOne(
-        { _id: new ObjectId(params.id) },
+        { _id: new ObjectId(id) },
         { $set: updateData }
       );
 
     const updatedLabGroup = await db
       .collection<LabGroup>('labGroups')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     return successResponse(updatedLabGroup);
   } catch (error) {
@@ -82,7 +84,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireRole(request, ['lab_faculty', 'hod', 'principal']);
   
@@ -91,13 +93,14 @@ export async function DELETE(
   }
 
   try {
+    const { id } = await params;
     const db = await getDatabase();
 
     // Soft delete
     await db
       .collection<LabGroup>('labGroups')
       .updateOne(
-        { _id: new ObjectId(params.id) },
+        { _id: new ObjectId(id) },
         { $set: { active: false, updatedAt: new Date() } }
       );
 

@@ -37,7 +37,19 @@ export async function generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): P
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload as JWTPayload;
+    
+    // Type guard to ensure payload has required fields
+    if (
+      payload &&
+      typeof payload.userId === 'string' &&
+      typeof payload.email === 'string' &&
+      typeof payload.role === 'string' &&
+      typeof payload.institutionId === 'string'
+    ) {
+      return payload as unknown as JWTPayload;
+    }
+    
+    return null;
   } catch (error) {
     return null;
   }

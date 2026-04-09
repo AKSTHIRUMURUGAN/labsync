@@ -7,7 +7,7 @@ import { ObjectId } from 'mongodb';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireRole(request, ['lab_faculty', 'hod', 'principal']);
   
@@ -16,6 +16,7 @@ export async function POST(
   }
 
   try {
+    const { id } = await params;
     const body = await request.json();
     const { studentIds } = body;
 
@@ -26,7 +27,7 @@ export async function POST(
     const db = await getDatabase();
     const labGroup = await db
       .collection<LabGroup>('labGroups')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     if (!labGroup) {
       return notFoundError('Lab group not found');
@@ -41,7 +42,7 @@ export async function POST(
     await db
       .collection<LabGroup>('labGroups')
       .updateOne(
-        { _id: new ObjectId(params.id) },
+        { _id: new ObjectId(id) },
         {
           $push: { students: { $each: newStudentIds } },
           $set: { updatedAt: new Date() },
@@ -50,7 +51,7 @@ export async function POST(
 
     const updatedLabGroup = await db
       .collection<LabGroup>('labGroups')
-      .findOne({ _id: new ObjectId(params.id) });
+      .findOne({ _id: new ObjectId(id) });
 
     return successResponse(updatedLabGroup);
   } catch (error) {

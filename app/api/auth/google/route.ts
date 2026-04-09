@@ -63,6 +63,11 @@ export async function POST(request: NextRequest) {
       user = { ...user, ...updates };
     }
 
+    // At this point, user is guaranteed to be non-null
+    if (!user) {
+      return errorResponse('SERVER_ERROR', 'Failed to create or retrieve user', 500);
+    }
+
     // Generate token
     const token = await generateToken({
       userId: user._id!.toString(),
