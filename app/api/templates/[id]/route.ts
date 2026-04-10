@@ -57,6 +57,7 @@ export async function PUT(
     if (body.description) updateData.description = body.description;
     if (body.objectives) updateData.objectives = body.objectives;
     if (body.steps) updateData.steps = body.steps;
+    if (body.sections) updateData.sections = body.sections; // Save sections
 
     const result = await db
       .collection<ExperimentTemplate>('experimentTemplates')

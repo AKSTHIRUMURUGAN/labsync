@@ -17,13 +17,13 @@ export default function CTASection() {
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
           <a
-            href="#"
+            href="/register"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-[10px] font-medium text-base cursor-pointer transition-all duration-200 no-underline bg-[var(--accent)] text-white border-[1.5px] border-[var(--accent)] hover:bg-[var(--accent2)] hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(26,86,255,0.25)]"
           >
             Start free 30-day trial
           </a>
           <a
-            href="#"
+            href="/login"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-[10px] font-medium text-base cursor-pointer transition-all duration-200 no-underline bg-[rgba(255,255,255,0.08)] text-white border-[1.5px] border-[rgba(255,255,255,0.15)] hover:bg-[rgba(255,255,255,0.12)]"
           >
             Schedule a demo

@@ -20,11 +20,15 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import RichTextEditor from './RichTextEditor';
 import ImageUploader from './ImageUploader';
+import AIBlockAssistant from './AIBlockAssistant';
+import ObservationTableBuilder from './ObservationTableBuilder';
+import CodeCompiler from './CodeCompiler';
 
 export interface TemplateSection {
   id: string;
-  type: 'text' | 'image' | 'heading' | 'divider';
-  content: string;
+  type: 'text' | 'image' | 'heading' | 'divider' | 'table' | 'code';
+  content: string | any;
+  editable?: boolean; // Whether students can edit this section
   settings?: {
     alignment?: 'left' | 'center' | 'right';
     size?: 'small' | 'medium' | 'large';
@@ -35,20 +39,30 @@ export interface TemplateSection {
 interface DragDropBuilderProps {
   sections: TemplateSection[];
   onChange: (sections: TemplateSection[]) => void;
+  experimentTitle?: string;
+  experimentDescription?: string;
 }
 
 function SortableSection({
   section,
   onUpdate,
+  onToggleEditable,
   onDelete,
+  experimentTitle,
+  experimentDescription,
 }: {
   section: TemplateSection;
-  onUpdate: (content: string) => void;
+  onUpdate: (content: string | any) => void;
+  onToggleEditable: () => void;
   onDelete: () => void;
+  experimentTitle?: string;
+  experimentDescription?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: section.id,
   });
+  
+  const [showTableBuilder, setShowTableBuilder] = useState(false);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -76,15 +90,53 @@ function SortableSection({
               {section.type}
             </span>
           </div>
-          <button
-            onClick={onDelete}
-            className="p-1 hover:bg-red-50 rounded text-red-600"
-            title="Delete section"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Editable Toggle - Only for text, heading, table, and code sections */}
+            {(section.type === 'text' || section.type === 'heading' || section.type === 'table' || section.type === 'code') && (
+              <button
+                onClick={onToggleEditable}
+                className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition ${
+                  section.editable 
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title={section.editable ? 'Students can edit this section' : 'Students cannot edit this section (read-only)'}
+              >
+                {section.editable ? (
+                  <>
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                    <span>Editable</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                    <span>Read-only</span>
+                  </>
+                )}
+              </button>
+            )}
+            {/* AI Assistant - Only for text and heading blocks */}
+            {(section.type === 'text' || section.type === 'heading') && section.content && (
+              <AIBlockAssistant
+                content={section.content}
+                onApply={onUpdate}
+                blockType={section.type}
+              />
+            )}
+            <button
+              onClick={onDelete}
+              className="p-1 hover:bg-red-50 rounded text-red-600"
+              title="Delete section"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Section Content */}
@@ -122,13 +174,121 @@ function SortableSection({
               <hr className="flex-1 border-t-2 border-[var(--paper3)]" />
             </div>
           )}
+
+          {section.type === 'code' && (
+            <div>
+              {!showTableBuilder && section.content && section.content.problemTitle ? (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h4 className="font-bold text-[var(--ink)]">{section.content.problemTitle}</h4>
+                      <p className="text-sm text-[var(--ink3)]">{section.content.selectedLanguage?.toUpperCase()}</p>
+                    </div>
+                    <button
+                      onClick={() => setShowTableBuilder(true)}
+                      className="px-3 py-1 text-sm bg-[var(--accent)] text-white rounded hover:bg-[var(--accent2)] transition"
+                    >
+                      Edit Code Problem
+                    </button>
+                  </div>
+                  <div className="bg-gray-50 rounded p-4 border border-[var(--paper3)]">
+                    <p className="text-sm text-[var(--ink2)] whitespace-pre-wrap">{section.content.problemDescription}</p>
+                    <div className="mt-3 text-xs text-[var(--ink3)]">
+                      {section.content.testCases?.filter((tc: any) => !tc.isHidden).length || 0} visible test cases, 
+                      {' '}{section.content.testCases?.filter((tc: any) => tc.isHidden).length || 0} hidden test cases
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <CodeCompiler
+                    onSave={(codeData) => {
+                      onUpdate(codeData);
+                      setShowTableBuilder(false);
+                    }}
+                    initialData={section.content}
+                  />
+                  {section.content && section.content.problemTitle && (
+                    <button
+                      onClick={() => setShowTableBuilder(false)}
+                      className="mt-4 px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {section.type === 'table' && (
+            <div>
+              {!showTableBuilder && section.content ? (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-bold text-[var(--ink)]">{section.content.name || 'Observation Table'}</h4>
+                    <button
+                      onClick={() => setShowTableBuilder(true)}
+                      className="px-3 py-1 text-sm bg-[var(--accent)] text-white rounded hover:bg-[var(--accent2)] transition"
+                    >
+                      Edit Table
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-[var(--paper3)]">
+                      <thead>
+                        <tr className="bg-[var(--paper)]">
+                          {section.content.columns?.map((col: any) => (
+                            <th key={col.id} className="px-4 py-2 text-left text-sm font-medium border border-[var(--paper3)]">
+                              {col.name}
+                              {col.unit && <span className="text-xs text-[var(--ink3)] ml-1">({col.unit})</span>}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {section.content.rows?.map((row: any) => (
+                          <tr key={row.id}>
+                            {section.content.columns?.map((col: any) => (
+                              <td key={col.id} className="px-4 py-2 border border-[var(--paper3)]">
+                                {row.values[col.id]}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <ObservationTableBuilder
+                    onSave={(tableData) => {
+                      onUpdate(tableData);
+                      setShowTableBuilder(false);
+                    }}
+                    experimentTitle={experimentTitle}
+                    experimentDescription={experimentDescription}
+                  />
+                  {section.content && (
+                    <button
+                      onClick={() => setShowTableBuilder(false)}
+                      className="mt-4 px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-export default function DragDropBuilder({ sections, onChange }: DragDropBuilderProps) {
+export default function DragDropBuilder({ sections, onChange, experimentTitle, experimentDescription }: DragDropBuilderProps) {
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -162,6 +322,14 @@ export default function DragDropBuilder({ sections, onChange }: DragDropBuilderP
     onChange(
       sections.map((section) =>
         section.id === id ? { ...section, content } : section
+      )
+    );
+  };
+
+  const toggleEditable = (id: string) => {
+    onChange(
+      sections.map((section) =>
+        section.id === id ? { ...section, editable: !section.editable } : section
       )
     );
   };
@@ -212,6 +380,24 @@ export default function DragDropBuilder({ sections, onChange }: DragDropBuilderP
             </svg>
             Divider
           </button>
+          <button
+            onClick={() => addSection('table')}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--paper)] hover:bg-[var(--accent3)] text-[var(--ink)] rounded-lg transition"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+            </svg>
+            Observation Table
+          </button>
+          <button
+            onClick={() => addSection('code')}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--paper)] hover:bg-[var(--accent3)] text-[var(--ink)] rounded-lg transition"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd"/>
+            </svg>
+            Code Compiler
+          </button>
         </div>
       </div>
 
@@ -232,7 +418,10 @@ export default function DragDropBuilder({ sections, onChange }: DragDropBuilderP
                   key={section.id}
                   section={section}
                   onUpdate={(content) => updateSection(section.id, content)}
+                  onToggleEditable={() => toggleEditable(section.id)}
                   onDelete={() => deleteSection(section.id)}
+                  experimentTitle={experimentTitle}
+                  experimentDescription={experimentDescription}
                 />
               ))}
             </div>

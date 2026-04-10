@@ -251,16 +251,6 @@ export default function LoginPage() {
             </Link>
           </p>
         </div>
-
-        {/* Demo Accounts */}
-        <div className="mt-6 bg-white/5 backdrop-blur-sm rounded-lg p-4 text-white text-xs">
-          <p className="font-semibold mb-2">Demo Accounts (password: password123):</p>
-          <ul className="space-y-1 text-gray-300">
-            <li>• student1@labsync.edu (Student)</li>
-            <li>• faculty@labsync.edu (Faculty)</li>
-            <li>• coordinator@labsync.edu (Coordinator)</li>
-          </ul>
-        </div>
       </div>
     </div>
   );

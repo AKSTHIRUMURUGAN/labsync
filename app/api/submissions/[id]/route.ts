@@ -18,9 +18,39 @@ export async function GET(
   try {
     const { id } = await params;
     const db = await getDatabase();
-    const submission = await db
+    
+    const submissions = await db
       .collection<Submission>('submissions')
-      .findOne({ _id: new ObjectId(id) });
+      .aggregate([
+        { $match: { _id: new ObjectId(id) } },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'studentId',
+            foreignField: '_id',
+            as: 'student'
+          }
+        },
+        {
+          $addFields: {
+            studentName: {
+              $concat: [
+                { $arrayElemAt: ['$student.firstName', 0] },
+                ' ',
+                { $arrayElemAt: ['$student.lastName', 0] }
+              ]
+            }
+          }
+        },
+        {
+          $project: {
+            student: 0
+          }
+        }
+      ])
+      .toArray();
+
+    const submission = submissions[0];
 
     if (!submission) {
       return notFoundError('Submission not found');

@@ -7,7 +7,7 @@ import Link from 'next/link';
 interface Submission {
   _id: string;
   experimentTitle: string;
-  status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  status: 'draft' | 'in_progress' | 'submitted' | 'approved' | 'rejected';
   submittedAt?: string;
   reviewedAt?: string;
   reviewComments?: string;
@@ -48,7 +48,18 @@ export default function StudentSubmissionsPage() {
       case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       case 'submitted': return 'bg-blue-100 text-blue-800';
+      case 'in_progress': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'in_progress': return 'Draft';
+      case 'submitted': return 'Submitted';
+      case 'approved': return 'Approved';
+      case 'rejected': return 'Rejected';
+      default: return status;
     }
   };
 
@@ -136,14 +147,14 @@ export default function StudentSubmissionsPage() {
             All ({submissions.length})
           </button>
           <button
-            onClick={() => setFilter('draft')}
+            onClick={() => setFilter('in_progress')}
             className={`px-4 py-2 rounded-lg transition ${
-              filter === 'draft' 
+              filter === 'in_progress' 
                 ? 'bg-[var(--accent)] text-white' 
                 : 'bg-white text-[var(--ink3)] border border-[var(--paper3)] hover:border-[var(--accent)]'
             }`}
           >
-            Drafts ({submissions.filter(s => s.status === 'draft').length})
+            Drafts ({submissions.filter(s => s.status === 'in_progress').length})
           </button>
           <button
             onClick={() => setFilter('submitted')}
@@ -224,7 +235,7 @@ export default function StudentSubmissionsPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(submission.status)}`}>
-                      {submission.status.charAt(0).toUpperCase() + submission.status.slice(1)}
+                      {getStatusLabel(submission.status)}
                     </span>
                     <Link
                       href={`/student/submissions/${submission._id}`}

@@ -3,20 +3,40 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import StudentObservationTable from '@/app/components/TemplateEditor/StudentObservationTable';
+import StudentCodeCompiler from '@/app/components/TemplateEditor/StudentCodeCompiler';
+
+interface ObservationRow {
+  rowId: string;
+  cells: { [columnId: string]: any };
+}
+
+interface ObservationData {
+  tableId: string;
+  tableName: string;
+  rows: ObservationRow[];
+}
+
+interface CalculationResult {
+  columnId: string;
+  formula: string;
+  result: number;
+  dependencies: { [columnId: string]: any };
+}
 
 interface Submission {
   _id: string;
   experimentTitle: string;
-  aim: string;
-  theory: string;
-  procedure: string;
-  observations: string;
-  calculations: string;
-  result: string;
+  experimentTemplateId?: string;
+  observationData: ObservationData[];
+  calculations: CalculationResult[];
+  results: string;
   conclusion: string;
   status: string;
   submittedAt: string;
   studentName: string;
+  templateData?: any;
+  sectionData?: { [key: string]: any };
 }
 
 export default function FacultyReviewDetailPage() {
@@ -25,6 +45,7 @@ export default function FacultyReviewDetailPage() {
   const id = params.id as string;
 
   const [submission, setSubmission] = useState<Submission | null>(null);
+  const [template, setTemplate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [reviewComments, setReviewComments] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -40,7 +61,20 @@ export default function FacultyReviewDetailPage() {
       const response = await fetch(`/api/submissions/${id}`);
       const data = await response.json();
       if (data.success) {
+        console.log('📥 Received submission data:', data.data);
+        console.log('📊 sectionData:', data.data.sectionData);
+        console.log('📋 Number of sections:', data.data.sectionData ? Object.keys(data.data.sectionData).length : 0);
         setSubmission(data.data);
+        
+        // Fetch template to get section structure
+        if (data.data.experimentTemplateId) {
+          const templateResponse = await fetch(`/api/templates/${data.data.experimentTemplateId}`);
+          const templateData = await templateResponse.json();
+          if (templateData.success) {
+            console.log('📄 Template sections:', templateData.data.sections);
+            setTemplate(templateData.data);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to fetch submission', error);
@@ -129,40 +163,140 @@ export default function FacultyReviewDetailPage() {
 
         {/* Content Sections */}
         <div className="space-y-6 mb-8">
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Aim</h3>
-            <p className="text-[var(--ink2)] whitespace-pre-wrap">{submission.aim || 'Not provided'}</p>
-          </div>
+          {/* Template Data Sections */}
+          {submission.templateData && Object.keys(submission.templateData).length > 0 && (
+            <>
+              {Object.entries(submission.templateData).map(([key, value]) => (
+                <div key={key} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                  <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3 capitalize">
+                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                  </h3>
+                  <div className="text-[var(--ink2)] whitespace-pre-wrap">
+                    {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
 
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Theory</h3>
-            <p className="text-[var(--ink2)] whitespace-pre-wrap">{submission.theory || 'Not provided'}</p>
-          </div>
+          {/* Observations */}
+          {submission.observationData && submission.observationData.length > 0 && (
+            <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+              <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Observations</h3>
+              {submission.observationData.map((table) => (
+                <div key={table.tableId} className="mb-4">
+                  <h4 className="font-medium text-[var(--ink)] mb-2">{table.tableName}</h4>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border border-[var(--paper3)]">
+                      <tbody>
+                        {table.rows.map((row) => (
+                          <tr key={row.rowId} className="border-b border-[var(--paper3)]">
+                            {Object.entries(row.cells).map(([colId, value]) => (
+                              <td key={colId} className="px-4 py-2 border-r border-[var(--paper3)]">
+                                {String(value)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Procedure</h3>
-            <p className="text-[var(--ink2)] whitespace-pre-wrap">{submission.procedure || 'Not provided'}</p>
-          </div>
+          {/* Calculations */}
+          {submission.calculations && submission.calculations.length > 0 && (
+            <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+              <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Calculations</h3>
+              <div className="space-y-3">
+                {submission.calculations.map((calc, idx) => (
+                  <div key={idx} className="p-3 bg-[var(--paper)] rounded-lg">
+                    <div className="text-sm text-[var(--ink3)] mb-1">Formula: {calc.formula}</div>
+                    <div className="text-[var(--ink)] font-medium">Result: {calc.result}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Observations</h3>
-            <p className="text-[var(--ink2)] whitespace-pre-wrap">{submission.observations || 'Not provided'}</p>
-          </div>
+          {/* Results */}
+          {submission.results && (
+            <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+              <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Results</h3>
+              <p className="text-[var(--ink2)] whitespace-pre-wrap">{submission.results}</p>
+            </div>
+          )}
 
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Calculations</h3>
-            <p className="text-[var(--ink2)] whitespace-pre-wrap">{submission.calculations || 'Not provided'}</p>
-          </div>
+          {/* Conclusion */}
+          {submission.conclusion && (
+            <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+              <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Conclusion</h3>
+              <p className="text-[var(--ink2)] whitespace-pre-wrap">{submission.conclusion}</p>
+            </div>
+          )}
 
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Result</h3>
-            <p className="text-[var(--ink2)] whitespace-pre-wrap">{submission.result || 'Not provided'}</p>
-          </div>
-
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">Conclusion</h3>
-            <p className="text-[var(--ink2)] whitespace-pre-wrap">{submission.conclusion || 'Not provided'}</p>
-          </div>
+          {/* Render Code and Table Sections from Template */}
+          {template?.sections && template.sections.map((section: any) => {
+            const studentData = submission?.sectionData?.[section.id];
+            
+            if (section.type === 'table' && section.content) {
+              // Merge template structure with student data
+              const tableData = studentData?.data || section.content;
+              
+              return (
+                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                  <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">
+                    {section.content.name || 'Observation Table'}
+                    <span className="text-sm font-normal text-[var(--ink3)] ml-2">(Student Submission)</span>
+                  </h3>
+                  <StudentObservationTable 
+                    tableData={tableData}
+                    readOnly={true}
+                  />
+                </div>
+              );
+            }
+            
+            if (section.type === 'code' && section.content) {
+              // Merge template structure with student code
+              const codeData = {
+                ...section.content,
+                code: studentData?.data?.code || section.content.code,
+                language: studentData?.data?.language || section.content.selectedLanguage
+              };
+              
+              return (
+                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                  <h3 className="text-lg font-bold text-[var(--ink)] heading mb-3">
+                    {section.content.problemTitle || 'Code Problem'}
+                    <span className="text-sm font-normal text-[var(--ink3)] ml-2">(Student Submission)</span>
+                  </h3>
+                  <StudentCodeCompiler 
+                    codeData={codeData}
+                    readOnly={false}
+                  />
+                  {studentData?.data?.testResults && studentData.data.testResults.length > 0 && (
+                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="font-semibold text-[var(--ink)] mb-2">Student's Test Results:</h4>
+                      <div className="space-y-2">
+                        {studentData.data.testResults.map((result: any, idx: number) => (
+                          <div key={idx} className={`p-2 rounded text-sm ${
+                            result.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            Test Case {idx + 1}: {result.passed ? '✓ Passed' : '✗ Failed'}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            
+            return null;
+          })}
         </div>
 
         {/* Review Section */}
@@ -200,11 +334,29 @@ export default function FacultyReviewDetailPage() {
           </div>
         )}
 
-        {submission.status !== 'submitted' && (
+        {submission.status === 'approved' && (
+          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-green-600 mb-2">✓ Submission Approved</h3>
+                <p className="text-[var(--ink3)] text-sm">This submission has been approved</p>
+              </div>
+              <button
+                onClick={() => window.open(`/faculty/reviews/${id}/print`, '_blank')}
+                className="px-6 py-3 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent2)] transition flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print Lab Manual
+              </button>
+            </div>
+          </div>
+        )}
+
+        {submission.status === 'rejected' && (
           <div className="bg-[var(--paper)] rounded-xl p-6 text-center">
-            <p className="text-[var(--ink3)]">
-              This submission has already been {submission.status}
-            </p>
+            <p className="text-red-600 font-semibold">This submission has been rejected</p>
           </div>
         )}
       </main>

@@ -21,6 +21,7 @@ interface Submission {
 
 interface ActiveSession {
   _id: string;
+  experimentTemplateId: string;
   startTime: string;
   duration: number;
   location?: string;
@@ -196,7 +197,7 @@ export default function StudentDashboard() {
                 </div>
                 <div className="mt-4">
                   <Link
-                    href="/student/experiments/new"
+                    href={`/student/experiments/new?session=${session._id}&template=${session.experimentTemplateId}`}
                     className="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
                   >
                     Submit Experiment

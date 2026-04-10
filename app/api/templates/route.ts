@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { title, description, objectives, steps, observationTables, requiredFields, calculationRules, departmentId } = body;
+    const { title, description, objectives, steps, observationTables, requiredFields, calculationRules, departmentId, sections } = body;
 
     // Validation
     const errors: { [key: string]: string } = {};
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const db = await getDatabase();
-    const template: ExperimentTemplate = {
+    const template: any = {
       version: '1.0.0',
       title,
       description,
@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
       observationTables,
       requiredFields: requiredFields || [],
       calculationRules: calculationRules || [],
+      sections: sections || [], // Save sections
       createdBy: new ObjectId(authResult.userId),
       departmentId: new ObjectId(departmentId),
       active: true,
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
 
-    const result = await db.collection<ExperimentTemplate>('experimentTemplates').insertOne(template);
+    const result = await db.collection('experimentTemplates').insertOne(template);
     template._id = result.insertedId;
 
     return successResponse(template);

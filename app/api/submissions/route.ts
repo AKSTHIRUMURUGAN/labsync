@@ -42,10 +42,36 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
     const submissions = await db
       .collection<Submission>('submissions')
-      .find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
+      .aggregate([
+        { $match: query },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'studentId',
+            foreignField: '_id',
+            as: 'student'
+          }
+        },
+        {
+          $addFields: {
+            studentName: {
+              $concat: [
+                { $arrayElemAt: ['$student.firstName', 0] },
+                ' ',
+                { $arrayElemAt: ['$student.lastName', 0] }
+              ]
+            }
+          }
+        },
+        {
+          $project: {
+            student: 0
+          }
+        }
+      ])
       .toArray();
 
     const total = await db.collection<Submission>('submissions').countDocuments(query);
@@ -66,11 +92,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { labSessionId, observationData, results, conclusion } = body;
+    const { labSessionId, experimentTemplateId, experimentTitle, observationData, calculations, results, conclusion, status, templateData, sectionData } = body;
 
     // Validation
     const errors: { [key: string]: string } = {};
     if (!labSessionId) errors.labSessionId = 'Lab session ID is required';
+    if (!experimentTemplateId) errors.experimentTemplateId = 'Template ID is required';
 
     if (Object.keys(errors).length > 0) {
       return validationError(errors);
@@ -87,8 +114,13 @@ export async function POST(request: NextRequest) {
       return validationError({ labSessionId: 'Session not found' });
     }
 
-    if (session.status !== 'active') {
-      return conflictError('Cannot submit to inactive session');
+    // Get template for title if not provided
+    let title = experimentTitle;
+    if (!title) {
+      const template = await db
+        .collection('experimentTemplates')
+        .findOne({ _id: new ObjectId(experimentTemplateId) });
+      title = template?.title || 'Lab Experiment';
     }
 
     // Check for existing submission
@@ -103,17 +135,20 @@ export async function POST(request: NextRequest) {
       return conflictError('Submission already exists for this session');
     }
 
-    const submission: Submission = {
+    const submission: any = {
       labSessionId: new ObjectId(labSessionId),
       studentId: new ObjectId(authResult.userId),
-      experimentTemplateId: session.experimentTemplateId,
+      experimentTemplateId: new ObjectId(experimentTemplateId),
+      experimentTitle: title,
       templateVersion: session.templateVersion,
-      status: 'in_progress',
+      status: status || 'in_progress',
       observationData: observationData || [],
       proofImages: [],
-      calculations: [],
+      calculations: calculations || [],
       results: results || '',
       conclusion: conclusion || '',
+      templateData: templateData || {},
+      sectionData: sectionData || {}, // Save section data (code and tables)
       editHistory: [],
       flagged: false,
       version: 1,
@@ -121,7 +156,11 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
 
-    const result = await db.collection<Submission>('submissions').insertOne(submission);
+    if (status === 'submitted') {
+      submission.submittedAt = new Date();
+    }
+
+    const result = await db.collection('submissions').insertOne(submission);
     submission._id = result.insertedId;
 
     return successResponse(submission);

@@ -53,7 +53,7 @@ export default function Hero() {
 
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center flex-wrap [animation:fadeUp_0.8s_0.3s_ease_both] mb-8 sm:mb-12 px-4">
           <a
-            href="#"
+            href="/register"
             className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 rounded-[10px] font-medium text-sm sm:text-base cursor-pointer transition-all duration-200 no-underline bg-[var(--accent)] text-white border-[1.5px] border-[var(--accent)] hover:bg-[var(--accent2)] hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(26,86,255,0.25)]"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
@@ -62,7 +62,7 @@ export default function Hero() {
             Start free trial
           </a>
           <a
-            href="#"
+            href="/login"
             className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 rounded-[10px] font-medium text-sm sm:text-base cursor-pointer transition-all duration-200 no-underline bg-transparent text-[var(--ink)] border-[1.5px] border-[rgba(10,15,30,0.15)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">

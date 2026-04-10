@@ -54,13 +54,13 @@ export default function Navbar() {
 
       <div className="flex gap-2 items-center">
         <Link
-          href="#"
+          href="/login"
           className="hidden sm:inline-flex items-center gap-2 px-3 sm:px-4 md:px-5 py-2 md:py-2.5 rounded-lg font-['DM_Sans'] font-medium text-xs sm:text-sm cursor-pointer transition-all duration-200 no-underline bg-transparent text-[var(--ink)] border-[1.5px] border-[rgba(10,15,30,0.15)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
         >
           Sign in
         </Link>
         <Link
-          href="#"
+          href="/register"
           className="inline-flex items-center gap-2 px-3 sm:px-4 md:px-5 py-2 md:py-2.5 rounded-lg font-['DM_Sans'] font-medium text-xs sm:text-sm cursor-pointer transition-all duration-200 no-underline bg-[var(--accent)] text-white border-[1.5px] border-[var(--accent)] hover:bg-[var(--accent2)] hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(26,86,255,0.25)]"
         >
           Get started

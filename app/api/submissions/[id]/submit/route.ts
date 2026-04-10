@@ -32,15 +32,16 @@ export async function POST(
       return forbiddenError('Access denied');
     }
 
-    // Validate required fields
+    // Validate required fields - make it more lenient
     const errors: { [key: string]: string } = {};
     
-    if (!submission.proofImages || submission.proofImages.length === 0) {
-      errors.proofImages = 'At least one proof image is required';
-    }
+    // Check if there's any content at all
+    const hasObservations = submission.observationData && submission.observationData.length > 0;
+    const hasResults = submission.results && submission.results.trim().length > 0;
+    const hasConclusion = submission.conclusion && submission.conclusion.trim().length > 0;
 
-    if (!submission.observationData || submission.observationData.length === 0) {
-      errors.observationData = 'Observation data is required';
+    if (!hasObservations && !hasResults && !hasConclusion) {
+      errors.content = 'Please fill in at least observations, results, or conclusion before submitting';
     }
 
     if (Object.keys(errors).length > 0) {
