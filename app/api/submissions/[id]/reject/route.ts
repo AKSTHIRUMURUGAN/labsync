@@ -34,14 +34,14 @@ export async function POST(
       return notFoundError('Submission not found');
     }
 
-    // Update submission status
+    // Update submission status to in_progress so student can edit and resubmit
     await db
       .collection<Submission>('submissions')
       .updateOne(
         { _id: new ObjectId(id) },
         {
           $set: {
-            status: 'rejected',
+            status: 'in_progress', // Changed from 'rejected' to allow editing
             reviewedBy: new ObjectId(authResult.userId),
             reviewedAt: new Date(),
             rejectionReason: reason,

@@ -142,8 +142,25 @@ export default function AITemplateBuilder({ title, onGenerate }: AITemplateBuild
           id: `section-${sectionId++}`,
           type: 'text',
           content: '<p><em>Students will record their observations here during the experiment.</em></p>',
-          settings: { alignment: 'left' }
+          settings: { alignment: 'left' },
+          editable: true
         });
+
+        // Add image upload section for experiments that typically need photos
+        const needsImageUpload = experimentTitle.toLowerCase().match(
+          /circuit|diagram|setup|apparatus|microscope|specimen|graph|plot|oscilloscope|waveform|breadboard|pcb|hardware|assembly|construction/
+        );
+        
+        if (needsImageUpload || data.data.requiresImages) {
+          sections.push({
+            id: `section-${sectionId++}`,
+            type: 'imageUpload',
+            title: 'Upload Experimental Setup/Circuit Diagram',
+            content: '',
+            settings: { alignment: 'left' },
+            editable: true
+          });
+        }
 
         sections.push({
           id: `section-${sectionId++}`,
@@ -155,8 +172,41 @@ export default function AITemplateBuilder({ title, onGenerate }: AITemplateBuild
           id: `section-${sectionId++}`,
           type: 'text',
           content: '<p><em>Students will document their results and output here.</em></p>',
-          settings: { alignment: 'left' }
+          settings: { alignment: 'left' },
+          editable: true
         });
+
+        // Add image upload for results (graphs, charts, screenshots)
+        const needsResultImages = experimentTitle.toLowerCase().match(
+          /graph|plot|chart|waveform|spectrum|analysis|visualization|simulation|output|display/
+        );
+        
+        if (needsResultImages || data.data.requiresResultImages) {
+          sections.push({
+            id: `section-${sectionId++}`,
+            type: 'imageUpload',
+            title: 'Upload Graph/Chart/Output Screenshot',
+            content: '',
+            settings: { alignment: 'left' },
+            editable: true
+          });
+        }
+
+        // Add file upload for data-heavy experiments
+        const needsFileUpload = experimentTitle.toLowerCase().match(
+          /data|analysis|simulation|computation|calculation|spreadsheet|csv|excel|measurement/
+        );
+        
+        if (needsFileUpload || data.data.requiresDataFile) {
+          sections.push({
+            id: `section-${sectionId++}`,
+            type: 'fileUpload',
+            title: 'Upload Data File/Spreadsheet',
+            content: '',
+            settings: { alignment: 'left' },
+            editable: true
+          });
+        }
 
         sections.push({
           id: `section-${sectionId++}`,
@@ -168,7 +218,8 @@ export default function AITemplateBuilder({ title, onGenerate }: AITemplateBuild
           id: `section-${sectionId++}`,
           type: 'text',
           content: '<p><em>Students will write their conclusion based on the experiment results.</em></p>',
-          settings: { alignment: 'left' }
+          settings: { alignment: 'left' },
+          editable: true
         });
 
         // Add Learning Outcomes
@@ -375,6 +426,7 @@ export default function AITemplateBuilder({ title, onGenerate }: AITemplateBuild
                         <li>Step-by-step procedure</li>
                         <li>Safety precautions</li>
                         <li>Student work sections</li>
+                        <li>Image/file upload sections (when needed)</li>
                       </ul>
                     </div>
                   </div>

@@ -59,6 +59,12 @@ export async function POST(
             submittedAt: new Date(),
             updatedAt: new Date(),
           },
+          $unset: {
+            rejectionReason: '',
+            reviewComments: '',
+            reviewedBy: '',
+            reviewedAt: '',
+          },
         }
       );
 

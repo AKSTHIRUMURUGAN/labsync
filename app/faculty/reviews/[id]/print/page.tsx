@@ -528,28 +528,13 @@ export default function PrintSubmissionPage() {
           Student Work
         </h2>
 
-        {/* Editable Template Sections - Show student's input for editable sections */}
-        {template?.sections && template.sections.length > 0 && (
-          <>
-            {template.sections
-              .filter((section: any) => section.editable && (section.type === 'heading' || section.type === 'text'))
-              .map((section: any) => (
-                <div key={section.id} className="mb-6">
-                  <h3 className="text-lg font-bold mb-2">
-                    {section.content || 'Student Input'}
-                  </h3>
-                  <div className="whitespace-pre-wrap text-justify p-3 bg-gray-50 border border-gray-300">
-                    {/* Show student's input if available in templateData */}
-                    {submission.templateData?.[section.id] || '(No input provided)'}
-                  </div>
-                </div>
-              ))}
-          </>
-        )}
+        {/* Editable Template Sections - Show student's input for editable text sections */}
+        {/* These are now rendered from sectionData below, so this section is removed to avoid duplicates */}
 
         {/* Legacy Template Data Sections from Student (for backward compatibility) */}
+        {/* Only show if template doesn't have sections structure */}
         {submission.templateData && Object.keys(submission.templateData).length > 0 && 
-         !template?.sections?.some((s: any) => s.editable) && (
+         !template?.sections && (
           <>
             {Object.entries(submission.templateData).map(([key, value]) => (
               <div key={key} className="mb-6">
@@ -564,73 +549,155 @@ export default function PrintSubmissionPage() {
           </>
         )}
 
-        {/* Observations */}
-        {submission.observationData && submission.observationData.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-lg font-bold mb-3">Observations</h3>
-            {submission.observationData.map((table) => (
-              <div key={table.tableId} className="mb-4">
-                <h4 className="font-semibold mb-2">{table.tableName}</h4>
-                <table className="w-full border-collapse border border-gray-300">
-                  <tbody>
-                    {table.rows.map((row, rowIdx) => (
-                      <tr key={row.rowId}>
-                        {Object.entries(row.cells).map(([colId, value], colIdx) => (
-                          <td
-                            key={colId}
-                            className="border border-gray-300 px-3 py-2 text-center"
-                          >
-                            {String(value)}
-                          </td>
+        {/* Legacy fields - Only show if template doesn't have sections */}
+        {!template?.sections && (
+          <>
+            {/* Results - Always show if has data */}
+            {(submission.results || submission.conclusion) && (
+              <>
+                {submission.results && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-bold mb-3">Result / Output</h3>
+                    <div className="whitespace-pre-wrap text-justify p-3 bg-gray-50 border border-gray-300">
+                      {submission.results}
+                    </div>
+                  </div>
+                )}
+
+                {submission.conclusion && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-bold mb-3">Conclusion</h3>
+                    <div className="whitespace-pre-wrap text-justify p-3 bg-gray-50 border border-gray-300">
+                      {submission.conclusion}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Observations - Show if has data */}
+            {submission.observationData && submission.observationData.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-bold mb-3">Observations</h3>
+                {submission.observationData.map((table) => (
+                  <div key={table.tableId} className="mb-4">
+                    <h4 className="font-semibold mb-2">{table.tableName}</h4>
+                    <table className="w-full border-collapse border border-gray-300">
+                      <tbody>
+                        {table.rows.map((row, rowIdx) => (
+                          <tr key={row.rowId}>
+                            {Object.entries(row.cells).map(([colId, value], colIdx) => (
+                              <td
+                                key={colId}
+                                className="border border-gray-300 px-3 py-2 text-center"
+                              >
+                                {String(value)}
+                              </td>
+                            ))}
+                          </tr>
                         ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
-        {/* Calculations */}
-        {submission.calculations && submission.calculations.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-lg font-bold mb-3">Calculations</h3>
-            <div className="space-y-3">
-              {submission.calculations.map((calc, idx) => (
-                <div key={idx} className="p-3 bg-gray-50 border border-gray-300">
-                  <div className="text-sm mb-1">
-                    <strong>Formula:</strong> {calc.formula}
-                  </div>
-                  <div>
-                    <strong>Result:</strong> {calc.result}
-                  </div>
+            {/* Calculations - Show if has data */}
+            {submission.calculations && submission.calculations.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-bold mb-3">Calculations</h3>
+                <div className="space-y-3">
+                  {submission.calculations.map((calc, idx) => (
+                    <div key={idx} className="p-3 bg-gray-50 border border-gray-300">
+                      <div className="text-sm mb-1">
+                        <strong>Formula:</strong> {calc.formula}
+                      </div>
+                      <div>
+                        <strong>Result:</strong> {calc.result}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Results */}
-        {submission.results && (
-          <div className="mb-6">
-            <h3 className="text-lg font-bold mb-3">Results</h3>
-            <div className="whitespace-pre-wrap text-justify">{submission.results}</div>
-          </div>
-        )}
-
-        {/* Conclusion */}
-        {submission.conclusion && (
-          <div className="mb-6">
-            <h3 className="text-lg font-bold mb-3">Conclusion</h3>
-            <div className="whitespace-pre-wrap text-justify">{submission.conclusion}</div>
-          </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Code and Table Sections from sectionData */}
         {template?.sections && submission?.sectionData && Object.keys(submission.sectionData).length > 0 ? (
-          template.sections.map((section: any) => {
+          template.sections.map((section: any, index: number) => {
             const studentData = submission.sectionData?.[section.id];
+            
+            // Render editable text sections - use previous heading as title
+            if (section.type === 'text' && section.editable && studentData?.data) {
+              // Find the previous heading section to use as title
+              let title = 'Student Input';
+              for (let i = index - 1; i >= 0; i--) {
+                if (template.sections[i].type === 'heading') {
+                  title = template.sections[i].content;
+                  break;
+                }
+              }
+              
+              return (
+                <div key={section.id} className="mb-6">
+                  <h3 className="text-lg font-bold mb-3">
+                    {title} (Student Submission)
+                  </h3>
+                  <div className="whitespace-pre-wrap text-justify p-3 bg-gray-50 border border-gray-300">
+                    {studentData.data || '(Not provided)'}
+                  </div>
+                </div>
+              );
+            }
+            
+            // Render image upload sections
+            if (section.type === 'imageUpload' && studentData?.data) {
+              return (
+                <div key={section.id} className="mb-6">
+                  <h3 className="text-lg font-bold mb-3">
+                    {section.title || 'Uploaded Image'} (Student Submission)
+                  </h3>
+                  <div className="space-y-3">
+                    <img 
+                      src={studentData.data} 
+                      alt={studentData.fileName || 'Uploaded image'} 
+                      className="max-w-full h-auto rounded border border-gray-300"
+                    />
+                    {studentData.fileName && (
+                      <p className="text-sm text-gray-600">
+                        <strong>File:</strong> {studentData.fileName}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+            
+            // Render file upload sections
+            if (section.type === 'fileUpload' && studentData?.data) {
+              return (
+                <div key={section.id} className="mb-6">
+                  <h3 className="text-lg font-bold mb-3">
+                    {section.title || 'Uploaded File'} (Student Submission)
+                  </h3>
+                  <div className="p-4 bg-gray-50 border border-gray-300 rounded">
+                    <p className="font-medium">{studentData.fileName || 'Uploaded file'}</p>
+                    {studentData.fileSize && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        Size: {(studentData.fileSize / 1024).toFixed(2)} KB
+                      </p>
+                    )}
+                    {studentData.fileType && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Type: {studentData.fileType}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            }
             
             if (section.type === 'table' && section.content && studentData?.data) {
               const tableData = studentData.data;

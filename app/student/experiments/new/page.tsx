@@ -20,7 +20,7 @@ function NewExperimentForm() {
     procedure: '',
     observations: '',
     calculations: '',
-    result: '',
+    results: '',
     conclusion: '',
   });
   const [sectionData, setSectionData] = useState<{ [key: string]: any }>({});
@@ -80,7 +80,7 @@ function NewExperimentForm() {
       procedure: '',
       observations: '',
       calculations: '',
-      result: '',
+      results: '',
       conclusion: '',
     };
 
@@ -107,7 +107,7 @@ function NewExperimentForm() {
         } else if (sectionTitle.includes('calculation')) {
           newFormData.calculations = textContent;
         } else if (sectionTitle.includes('result') || sectionTitle.includes('output')) {
-          newFormData.result = textContent;
+          newFormData.results = textContent;
         } else if (sectionTitle.includes('conclusion')) {
           newFormData.conclusion = textContent;
         }
@@ -154,6 +154,32 @@ function NewExperimentForm() {
       console.log('📤 Current sectionData state:', JSON.stringify(sectionData, null, 2));
       console.log('📊 Number of sections with data:', Object.keys(sectionData).length);
       
+      // Extract results and conclusion from sectionData if they exist
+      let resultsText = formData.results || '';
+      let conclusionText = formData.conclusion || '';
+      
+      // Check if template has editable text sections for results/conclusion
+      // This is for backward compatibility and to populate the main results/conclusion fields
+      if (template?.sections) {
+        template.sections.forEach((section: any) => {
+          if (section.editable && section.type === 'text' && sectionData[section.id]?.data) {
+            const title = (section.title || '').toLowerCase();
+            const data = sectionData[section.id].data;
+            
+            // Try to identify results and conclusion fields for the main submission fields
+            if (title.includes('result') || title.includes('output')) {
+              resultsText = data;
+            } else if (title.includes('conclusion')) {
+              conclusionText = data;
+            }
+          }
+        });
+      }
+      
+      console.log('📝 Extracted results:', resultsText);
+      console.log('📝 Extracted conclusion:', conclusionText);
+      console.log('📦 All sectionData being sent:', sectionData);
+      
       // Prepare submission data according to the Submission model
       const submissionData: any = {
         experimentTemplateId: template?._id || templateId,
@@ -174,15 +200,16 @@ function NewExperimentForm() {
           result: 0,
           dependencies: {}
         }] : [],
-        results: formData.result || '',
-        conclusion: formData.conclusion || '',
+        results: resultsText,
+        conclusion: conclusionText,
         // Store template fields in a custom field for reference
         templateData: {
           aim: formData.aim,
           theory: formData.theory,
           procedure: formData.procedure,
         },
-        // Store section data (code and tables)
+        // Store ALL section data (code, tables, AND editable text sections)
+        // This preserves all student input for any editable section
         sectionData: sectionData
       };
 
@@ -286,12 +313,27 @@ function NewExperimentForm() {
                   {section.type === 'text' && section.content && (
                     <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
                       {section.editable ? (
-                        <textarea
-                          defaultValue={section.content.replace(/<[^>]*>/g, '')}
-                          rows={5}
-                          className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] outline-none resize-none"
-                          placeholder="Enter your text..."
-                        />
+                        <>
+                          <label className="block text-lg font-bold text-[var(--ink)] heading mb-2">
+                            {section.title || 'Text Section'}
+                          </label>
+                          <textarea
+                            value={sectionData[section.id]?.data || ''}
+                            onChange={(e) => {
+                              setSectionData(prev => ({
+                                ...prev,
+                                [section.id]: { 
+                                  type: 'text', 
+                                  data: e.target.value,
+                                  title: section.title || ''
+                                }
+                              }));
+                            }}
+                            rows={5}
+                            className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] outline-none resize-none"
+                            placeholder="Enter your text..."
+                          />
+                        </>
                       ) : (
                         <div 
                           className="prose max-w-none text-[var(--ink2)]" 
@@ -369,6 +411,148 @@ function NewExperimentForm() {
                           </p>
                         </div>
                       )}
+                    </div>
+                  )}
+                  {section.type === 'imageUpload' && (
+                    <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                      <h3 className="text-xl font-bold text-[var(--ink)] mb-4">
+                        {section.title || 'Upload Image'}
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="border-2 border-dashed border-[var(--paper3)] rounded-lg p-6 text-center hover:border-[var(--accent)] transition">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setSectionData(prev => ({
+                                    ...prev,
+                                    [section.id]: { 
+                                      type: 'imageUpload', 
+                                      data: reader.result as string,
+                                      fileName: file.name
+                                    }
+                                  }));
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                            id={`image-upload-${section.id}`}
+                          />
+                          <label htmlFor={`image-upload-${section.id}`} className="cursor-pointer">
+                            <svg className="w-12 h-12 mx-auto mb-3 text-[var(--ink3)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <p className="text-[var(--ink)] font-medium mb-1">Click to upload image</p>
+                            <p className="text-sm text-[var(--ink3)]">PNG, JPG, GIF up to 10MB</p>
+                          </label>
+                        </div>
+                        {sectionData[section.id]?.data && (
+                          <div className="relative">
+                            <img 
+                              src={sectionData[section.id].data} 
+                              alt="Uploaded" 
+                              className="max-w-full h-auto rounded-lg border border-[var(--paper3)]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSectionData(prev => {
+                                  const newData = { ...prev };
+                                  delete newData[section.id];
+                                  return newData;
+                                });
+                              }}
+                              className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                            <p className="text-sm text-[var(--ink3)] mt-2">
+                              {sectionData[section.id].fileName}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {section.type === 'fileUpload' && (
+                    <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                      <h3 className="text-xl font-bold text-[var(--ink)] mb-4">
+                        {section.title || 'Upload File'}
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="border-2 border-dashed border-[var(--paper3)] rounded-lg p-6 text-center hover:border-[var(--accent)] transition">
+                          <input
+                            type="file"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setSectionData(prev => ({
+                                    ...prev,
+                                    [section.id]: { 
+                                      type: 'fileUpload', 
+                                      data: reader.result as string,
+                                      fileName: file.name,
+                                      fileType: file.type,
+                                      fileSize: file.size
+                                    }
+                                  }));
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                            id={`file-upload-${section.id}`}
+                          />
+                          <label htmlFor={`file-upload-${section.id}`} className="cursor-pointer">
+                            <svg className="w-12 h-12 mx-auto mb-3 text-[var(--ink3)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <p className="text-[var(--ink)] font-medium mb-1">Click to upload file</p>
+                            <p className="text-sm text-[var(--ink3)]">PDF, DOC, XLS, CSV, TXT up to 10MB</p>
+                          </label>
+                        </div>
+                        {sectionData[section.id]?.data && (
+                          <div className="p-4 bg-[var(--paper)] rounded-lg border border-[var(--paper3)]">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <svg className="w-8 h-8 text-[var(--accent)]" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd"/>
+                                </svg>
+                                <div>
+                                  <p className="font-medium text-[var(--ink)]">{sectionData[section.id].fileName}</p>
+                                  <p className="text-sm text-[var(--ink3)]">
+                                    {(sectionData[section.id].fileSize / 1024).toFixed(2)} KB
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSectionData(prev => {
+                                    const newData = { ...prev };
+                                    delete newData[section.id];
+                                    return newData;
+                                  });
+                                }}
+                                className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -467,8 +651,8 @@ function NewExperimentForm() {
                   Result / Output
                 </label>
                 <textarea
-                  name="result"
-                  value={formData.result}
+                  name="results"
+                  value={formData.results}
                   onChange={handleChange}
                   rows={3}
                   className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none"

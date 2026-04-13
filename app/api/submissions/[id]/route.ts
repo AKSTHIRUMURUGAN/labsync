@@ -106,6 +106,20 @@ export async function PUT(
     if (submission.status === 'approved') {
       return forbiddenError('Cannot edit approved submission');
     }
+    
+    // If submission was rejected and is being edited, clear rejection fields
+    const updateFields: any = {
+      ...body,
+      updatedAt: new Date(),
+    };
+    
+    // Clear rejection fields when student edits after rejection
+    if (submission.rejectionReason && body.status !== 'rejected') {
+      updateFields.rejectionReason = '';
+      updateFields.reviewComments = '';
+      updateFields.reviewedBy = null;
+      updateFields.reviewedAt = null;
+    }
 
     // Track changes in edit history
     const editHistory = submission.editHistory || [];
@@ -126,10 +140,9 @@ export async function PUT(
         { _id: new ObjectId(id), version: submission.version },
         {
           $set: {
-            ...body,
+            ...updateFields,
             editHistory,
             version: submission.version + 1,
-            updatedAt: new Date(),
           },
         }
       );

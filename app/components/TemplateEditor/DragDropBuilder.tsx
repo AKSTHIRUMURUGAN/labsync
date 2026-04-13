@@ -26,7 +26,8 @@ import CodeCompiler from './CodeCompiler';
 
 export interface TemplateSection {
   id: string;
-  type: 'text' | 'image' | 'heading' | 'divider' | 'table' | 'code';
+  type: 'text' | 'image' | 'heading' | 'divider' | 'table' | 'code' | 'fileUpload' | 'imageUpload';
+  title?: string;
   content: string | any;
   editable?: boolean; // Whether students can edit this section
   settings?: {
@@ -91,8 +92,8 @@ function SortableSection({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Editable Toggle - Only for text, heading, table, and code sections */}
-            {(section.type === 'text' || section.type === 'heading' || section.type === 'table' || section.type === 'code') && (
+            {/* Editable Toggle - Only for text, heading, table, code, imageUpload, and fileUpload sections */}
+            {(section.type === 'text' || section.type === 'heading' || section.type === 'table' || section.type === 'code' || section.type === 'imageUpload' || section.type === 'fileUpload') && (
               <button
                 onClick={onToggleEditable}
                 className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition ${
@@ -282,6 +283,50 @@ function SortableSection({
               )}
             </div>
           )}
+
+          {section.type === 'imageUpload' && (
+            <div className="p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd"/>
+                </svg>
+                <input
+                  type="text"
+                  value={section.title || 'Upload Image'}
+                  onChange={(e) => {
+                    onChange(sections.map(s => s.id === section.id ? { ...s, title: e.target.value } : s));
+                  }}
+                  className="flex-1 px-3 py-1 text-sm font-medium text-blue-900 bg-transparent border-none outline-none"
+                  placeholder="Section title (e.g., 'Upload Circuit Diagram')"
+                />
+              </div>
+              <p className="text-sm text-blue-700">
+                Students will be able to upload an image here (e.g., experimental setup photo, circuit diagram, graph, etc.)
+              </p>
+            </div>
+          )}
+
+          {section.type === 'fileUpload' && (
+            <div className="p-4 bg-purple-50 border-2 border-purple-300 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd"/>
+                </svg>
+                <input
+                  type="text"
+                  value={section.title || 'Upload File'}
+                  onChange={(e) => {
+                    onChange(sections.map(s => s.id === section.id ? { ...s, title: e.target.value } : s));
+                  }}
+                  className="flex-1 px-3 py-1 text-sm font-medium text-purple-900 bg-transparent border-none outline-none"
+                  placeholder="Section title (e.g., 'Upload Data File')"
+                />
+              </div>
+              <p className="text-sm text-purple-700">
+                Students will be able to upload a file here (e.g., data file, report, spreadsheet, etc.)
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -310,10 +355,12 @@ export default function DragDropBuilder({ sections, onChange, experimentTitle, e
     const newSection: TemplateSection = {
       id: `section-${Date.now()}`,
       type,
-      content: '',
+      content: type === 'imageUpload' || type === 'fileUpload' ? '' : '',
+      title: type === 'imageUpload' ? 'Upload Image' : type === 'fileUpload' ? 'Upload File' : undefined,
       settings: {
         alignment: 'left',
       },
+      editable: type === 'imageUpload' || type === 'fileUpload' ? true : undefined,
     };
     onChange([...sections, newSection]);
   };
@@ -397,6 +444,25 @@ export default function DragDropBuilder({ sections, onChange, experimentTitle, e
               <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd"/>
             </svg>
             Code Compiler
+          </button>
+          <button
+            onClick={() => addSection('imageUpload')}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--paper)] hover:bg-[var(--accent3)] text-[var(--ink)] rounded-lg transition"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd"/>
+              <path d="M10 8a2 2 0 100-4 2 2 0 000 4z"/>
+            </svg>
+            Image Upload
+          </button>
+          <button
+            onClick={() => addSection('fileUpload')}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--paper)] hover:bg-[var(--accent3)] text-[var(--ink)] rounded-lg transition"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd"/>
+            </svg>
+            File Upload
           </button>
         </div>
       </div>

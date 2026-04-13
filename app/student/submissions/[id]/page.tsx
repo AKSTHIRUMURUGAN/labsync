@@ -157,6 +157,11 @@ export default function SubmissionDetailPage() {
   };
 
   const getStatusColor = (status: string) => {
+    // If status is in_progress but has rejection reason, show orange
+    if (status === 'in_progress' && submission?.rejectionReason) {
+      return 'bg-orange-100 text-orange-800';
+    }
+    
     switch (status) {
       case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
@@ -167,6 +172,11 @@ export default function SubmissionDetailPage() {
   };
 
   const getStatusLabel = (status: string) => {
+    // If status is in_progress but has rejection reason, show "Needs Revision"
+    if (status === 'in_progress' && submission?.rejectionReason) {
+      return 'Needs Revision';
+    }
+    
     switch (status) {
       case 'in_progress': return 'Draft';
       case 'submitted': return 'Submitted';
@@ -292,11 +302,18 @@ export default function SubmissionDetailPage() {
           </div>
         )}
 
-        {/* Rejection Reason */}
+        {/* Rejection Reason - Show helpful message for resubmission */}
         {submission.rejectionReason && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <h3 className="font-bold text-red-900 mb-2">Rejection Reason</h3>
-            <p className="text-red-800">{submission.rejectionReason}</p>
+          <div className="mb-6 p-4 bg-orange-50 border border-orange-300 rounded-lg">
+            <h3 className="font-bold text-orange-900 mb-2">
+              {submission.status === 'in_progress' ? '⚠️ Submission Needs Revision' : 'Rejection Reason'}
+            </h3>
+            <p className="text-orange-800 mb-3">{submission.rejectionReason}</p>
+            {submission.status === 'in_progress' && (
+              <p className="text-sm text-orange-700 bg-orange-100 p-2 rounded">
+                <strong>Action Required:</strong> Please review the feedback above, make necessary changes, and resubmit your work for review.
+              </p>
+            )}
           </div>
         )}
 
@@ -329,78 +346,166 @@ export default function SubmissionDetailPage() {
             </div>
           )}
 
-          {/* Editable Fields */}
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <label className="block text-lg font-bold text-[var(--ink)] heading mb-2">
-              Observations
-            </label>
-            {isEditing ? (
-              <textarea
-                name="observations"
-                value={formData.observations}
-                onChange={handleChange}
-                rows={5}
-                className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none"
-              />
-            ) : (
-              <div className="text-[var(--ink)] whitespace-pre-wrap">{formData.observations || 'Not provided'}</div>
-            )}
-          </div>
+          {/* Editable Fields - Only show if no template sections */}
+          {!template?.sections && (
+            <>
+              <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                <label className="block text-lg font-bold text-[var(--ink)] heading mb-2">
+                  Observations
+                </label>
+                {isEditing ? (
+                  <textarea
+                    name="observations"
+                    value={formData.observations}
+                    onChange={handleChange}
+                    rows={5}
+                    className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none"
+                  />
+                ) : (
+                  <div className="text-[var(--ink)] whitespace-pre-wrap">{formData.observations || 'Not provided'}</div>
+                )}
+              </div>
 
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <label className="block text-lg font-bold text-[var(--ink)] heading mb-2">
-              Calculations
-            </label>
-            {isEditing ? (
-              <textarea
-                name="calculations"
-                value={formData.calculations}
-                onChange={handleChange}
-                rows={5}
-                className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none"
-              />
-            ) : (
-              <div className="text-[var(--ink)] whitespace-pre-wrap">{formData.calculations || 'Not provided'}</div>
-            )}
-          </div>
+              <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                <label className="block text-lg font-bold text-[var(--ink)] heading mb-2">
+                  Calculations
+                </label>
+                {isEditing ? (
+                  <textarea
+                    name="calculations"
+                    value={formData.calculations}
+                    onChange={handleChange}
+                    rows={5}
+                    className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none"
+                  />
+                ) : (
+                  <div className="text-[var(--ink)] whitespace-pre-wrap">{formData.calculations || 'Not provided'}</div>
+                )}
+              </div>
 
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <label className="block text-lg font-bold text-[var(--ink)] heading mb-2">
-              Result / Output
-            </label>
-            {isEditing ? (
-              <textarea
-                name="results"
-                value={formData.results}
-                onChange={handleChange}
-                rows={3}
-                className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none"
-              />
-            ) : (
-              <div className="text-[var(--ink)] whitespace-pre-wrap">{formData.results || 'Not provided'}</div>
-            )}
-          </div>
+              <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                <label className="block text-lg font-bold text-[var(--ink)] heading mb-2">
+                  Result / Output
+                </label>
+                {isEditing ? (
+                  <textarea
+                    name="results"
+                    value={formData.results}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none"
+                  />
+                ) : (
+                  <div className="text-[var(--ink)] whitespace-pre-wrap">{formData.results || 'Not provided'}</div>
+                )}
+              </div>
 
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <label className="block text-lg font-bold text-[var(--ink)] heading mb-2">
-              Conclusion
-            </label>
-            {isEditing ? (
-              <textarea
-                name="conclusion"
-                value={formData.conclusion}
-                onChange={handleChange}
-                rows={3}
-                className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none"
-              />
-            ) : (
-              <div className="text-[var(--ink)] whitespace-pre-wrap">{formData.conclusion || 'Not provided'}</div>
-            )}
-          </div>
+              <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                <label className="block text-lg font-bold text-[var(--ink)] heading mb-2">
+                  Conclusion
+                </label>
+                {isEditing ? (
+                  <textarea
+                    name="conclusion"
+                    value={formData.conclusion}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none"
+                  />
+                ) : (
+                  <div className="text-[var(--ink)] whitespace-pre-wrap">{formData.conclusion || 'Not provided'}</div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Render Code and Table Sections from Template */}
-          {template?.sections && template.sections.map((section: any) => {
+          {template?.sections && template.sections.map((section: any, index: number) => {
             const studentData = submission?.sectionData?.[section.id];
+            
+            // Render editable text sections - use previous heading as title
+            if (section.type === 'text' && section.editable && studentData?.data) {
+              // Find the previous heading section to use as title
+              let title = 'Student Input';
+              for (let i = index - 1; i >= 0; i--) {
+                if (template.sections[i].type === 'heading') {
+                  title = template.sections[i].content;
+                  break;
+                }
+              }
+              
+              return (
+                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4">
+                    {title}
+                  </h3>
+                  <div className="text-[var(--ink2)] whitespace-pre-wrap p-3 bg-[var(--paper)] rounded-lg">
+                    {studentData.data || 'Not provided'}
+                  </div>
+                </div>
+              );
+            }
+            
+            // Render image upload sections
+            if (section.type === 'imageUpload' && studentData?.data) {
+              return (
+                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4">
+                    {section.title || 'Uploaded Image'}
+                  </h3>
+                  <div className="space-y-3">
+                    <img 
+                      src={studentData.data} 
+                      alt={studentData.fileName || 'Uploaded image'} 
+                      className="max-w-full h-auto rounded-lg border border-[var(--paper3)] shadow-sm"
+                    />
+                    {studentData.fileName && (
+                      <p className="text-sm text-[var(--ink3)]">
+                        <strong>File:</strong> {studentData.fileName}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+            
+            // Render file upload sections
+            if (section.type === 'fileUpload' && studentData?.data) {
+              return (
+                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4">
+                    {section.title || 'Uploaded File'}
+                  </h3>
+                  <div className="p-4 bg-[var(--paper)] rounded-lg border border-[var(--paper3)]">
+                    <div className="flex items-center gap-3">
+                      <svg className="w-10 h-10 text-[var(--accent)]" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd"/>
+                      </svg>
+                      <div className="flex-1">
+                        <p className="font-medium text-[var(--ink)]">{studentData.fileName || 'Uploaded file'}</p>
+                        {studentData.fileSize && (
+                          <p className="text-sm text-[var(--ink3)]">
+                            Size: {(studentData.fileSize / 1024).toFixed(2)} KB
+                          </p>
+                        )}
+                        {studentData.fileType && (
+                          <p className="text-xs text-[var(--ink3)]">
+                            Type: {studentData.fileType}
+                          </p>
+                        )}
+                      </div>
+                      <a
+                        href={studentData.data}
+                        download={studentData.fileName}
+                        className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent2)] transition text-sm"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
             
             if (section.type === 'table' && section.content) {
               // Merge template structure with student data
