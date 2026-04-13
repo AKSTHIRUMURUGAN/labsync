@@ -47,6 +47,7 @@ interface DragDropBuilderProps {
 function SortableSection({
   section,
   onUpdate,
+  onUpdateTitle,
   onToggleEditable,
   onDelete,
   experimentTitle,
@@ -54,6 +55,7 @@ function SortableSection({
 }: {
   section: TemplateSection;
   onUpdate: (content: string | any) => void;
+  onUpdateTitle: (title: string) => void;
   onToggleEditable: () => void;
   onDelete: () => void;
   experimentTitle?: string;
@@ -294,7 +296,7 @@ function SortableSection({
                   type="text"
                   value={section.title || 'Upload Image'}
                   onChange={(e) => {
-                    onChange(sections.map(s => s.id === section.id ? { ...s, title: e.target.value } : s));
+                    onUpdateTitle(e.target.value);
                   }}
                   className="flex-1 px-3 py-1 text-sm font-medium text-blue-900 bg-transparent border-none outline-none"
                   placeholder="Section title (e.g., 'Upload Circuit Diagram')"
@@ -316,7 +318,7 @@ function SortableSection({
                   type="text"
                   value={section.title || 'Upload File'}
                   onChange={(e) => {
-                    onChange(sections.map(s => s.id === section.id ? { ...s, title: e.target.value } : s));
+                    onUpdateTitle(e.target.value);
                   }}
                   className="flex-1 px-3 py-1 text-sm font-medium text-purple-900 bg-transparent border-none outline-none"
                   placeholder="Section title (e.g., 'Upload Data File')"
@@ -369,6 +371,14 @@ export default function DragDropBuilder({ sections, onChange, experimentTitle, e
     onChange(
       sections.map((section) =>
         section.id === id ? { ...section, content } : section
+      )
+    );
+  };
+
+  const updateSectionTitle = (id: string, title: string) => {
+    onChange(
+      sections.map((section) =>
+        section.id === id ? { ...section, title } : section
       )
     );
   };
@@ -484,6 +494,7 @@ export default function DragDropBuilder({ sections, onChange, experimentTitle, e
                   key={section.id}
                   section={section}
                   onUpdate={(content) => updateSection(section.id, content)}
+                  onUpdateTitle={(title) => updateSectionTitle(section.id, title)}
                   onToggleEditable={() => toggleEditable(section.id)}
                   onDelete={() => deleteSection(section.id)}
                   experimentTitle={experimentTitle}

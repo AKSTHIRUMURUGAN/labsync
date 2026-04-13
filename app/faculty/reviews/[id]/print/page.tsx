@@ -633,10 +633,12 @@ export default function PrintSubmissionPage() {
             if (section.type === 'text' && section.editable && studentData?.data) {
               // Find the previous heading section to use as title
               let title = 'Student Input';
-              for (let i = index - 1; i >= 0; i--) {
-                if (template.sections[i].type === 'heading') {
-                  title = template.sections[i].content;
-                  break;
+              if (template.sections) {
+                for (let i = index - 1; i >= 0; i--) {
+                  if (template.sections[i].type === 'heading') {
+                    title = template.sections[i].content;
+                    break;
+                  }
                 }
               }
               
