@@ -10,27 +10,6 @@ function isNonEmptyString(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function hasAllRequiredTableInputs(tableData: any): boolean {
-  if (!tableData || !Array.isArray(tableData.rows) || !Array.isArray(tableData.columns)) {
-    return false;
-  }
-
-  const inputColumns = tableData.columns.filter((col: any) => col?.type === 'input');
-  if (inputColumns.length === 0 || tableData.rows.length === 0) {
-    return false;
-  }
-
-  return tableData.rows.every((row: any) =>
-    inputColumns.every((col: any) => {
-      const value = row?.values?.[col.id];
-      if (typeof value === 'string') {
-        return value.trim().length > 0;
-      }
-      return value !== undefined && value !== null && value !== '';
-    })
-  );
-}
-
 function hasObservationContent(observationData: any[]): boolean {
   if (!Array.isArray(observationData) || observationData.length === 0) {
     return false;
@@ -90,41 +69,37 @@ export async function POST(
       const editableSections = templateSections.filter(
         (section: any) =>
           section?.editable &&
-          (section?.type === 'text' ||
-            section?.type === 'table' ||
-            section?.type === 'code' ||
-            section?.type === 'imageUpload' ||
-            section?.type === 'fileUpload')
+          section?.type === 'text'
       );
 
       const missingSections: string[] = [];
       const sectionData = (submission as any).sectionData || {};
+      const hasSectionDataEntries = Object.keys(sectionData).length > 0;
 
-      for (const section of editableSections) {
-        const data = sectionData?.[section.id];
-        const sectionLabel = section.title || section.content?.name || section.content?.problemTitle || section.type;
+      // Backward compatibility: if sectioned template exists but no sectionData was
+      // captured in this draft, validate using legacy content fields.
+      if (!hasSectionDataEntries) {
+        const hasObservations = hasObservationContent((submission as any).observationData || []);
+        const hasResults = isNonEmptyString((submission as any).results);
+        const hasConclusion = isNonEmptyString((submission as any).conclusion);
 
-        if (section.type === 'text') {
+        if (!hasObservations && !hasResults && !hasConclusion) {
+          errors.content = 'Please fill in at least observations, results, or conclusion before submitting';
+        }
+      } else {
+
+        for (const section of editableSections) {
+          const data = sectionData?.[section.id];
+          const sectionLabel = section.title || section.content?.name || section.content?.problemTitle || section.type;
+
           if (!isNonEmptyString(data?.data)) {
             missingSections.push(sectionLabel || 'Text section');
           }
-        } else if (section.type === 'table') {
-          if (!hasAllRequiredTableInputs(data?.data)) {
-            missingSections.push(sectionLabel || 'Observation Table');
-          }
-        } else if (section.type === 'code') {
-          if (!isNonEmptyString(data?.data?.code)) {
-            missingSections.push(sectionLabel || 'Code section');
-          }
-        } else if (section.type === 'imageUpload' || section.type === 'fileUpload') {
-          if (!data?.data) {
-            missingSections.push(sectionLabel);
-          }
         }
-      }
 
-      if (missingSections.length > 0) {
-        errors.content = `Please complete all editable sections before submitting: ${missingSections.join(', ')}`;
+        if (missingSections.length > 0) {
+          errors.content = `Please complete all required text sections before submitting: ${missingSections.join(', ')}`;
+        }
       }
     } else {
       // Fallback validation for legacy templates without sectioned editable blocks
