@@ -111,37 +111,85 @@ export default function PrintSubmissionPage() {
     setGenerating(true);
     try {
       const element = contentRef.current;
-      
-      // Temporarily replace CSS variables with actual colors for html2canvas
-      const originalStyles = element.style.cssText;
-      element.style.cssText = `
-        background: #ffffff;
-        color: #000000;
-      `;
-      
-      // Create canvas from HTML
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-          const clonedElement = clonedDoc.querySelector('.print-container');
-          if (clonedElement) {
-            // Remove any CSS variables that might cause issues
-            const allElements = clonedElement.querySelectorAll('*');
-            allElements.forEach((el: any) => {
-              if (el.style) {
-                el.style.color = el.style.color || '#000000';
-                el.style.backgroundColor = el.style.backgroundColor || 'transparent';
-              }
-            });
+      let canvas: HTMLCanvasElement;
+
+      try {
+        // Primary capture path: keep current styles but sanitize cloned CSS.
+        canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          onclone: (clonedDoc) => {
+            try {
+              const styleNodes = Array.from(clonedDoc.querySelectorAll('style'));
+              styleNodes.forEach((styleEl) => {
+                const cssText = styleEl.textContent || '';
+                const isPrintStyle = cssText.includes('.print-container') || cssText.includes('@media print');
+                const hasUnsupportedColorFn =
+                  cssText.includes('oklch(') ||
+                  cssText.includes('oklab(') ||
+                  cssText.includes('lab(') ||
+                  cssText.includes('lch(') ||
+                  cssText.includes('color(');
+
+                if (!isPrintStyle || hasUnsupportedColorFn) {
+                  styleEl.remove();
+                }
+              });
+
+              const linkNodes = Array.from(clonedDoc.querySelectorAll('link[rel="stylesheet"]'));
+              linkNodes.forEach((linkEl) => linkEl.remove());
+            } catch {}
+          },
+        });
+      } catch (primaryError) {
+        // Fallback: render an isolated plain-styled clone to avoid lab()/oklch() parsing.
+        console.warn('Primary PDF capture failed, retrying with isolated fallback:', primaryError);
+
+        const sandbox = document.createElement('div');
+        sandbox.style.position = 'fixed';
+        sandbox.style.left = '-100000px';
+        sandbox.style.top = '0';
+        sandbox.style.width = `${element.scrollWidth || 1200}px`;
+        sandbox.style.background = '#ffffff';
+        sandbox.style.color = '#000000';
+        sandbox.style.padding = '24px';
+
+        const styleEl = document.createElement('style');
+        styleEl.textContent = `
+          * { color: #000 !important; background: transparent !important; border-color: #000 !important; box-shadow: none !important; text-shadow: none !important; }
+          table { width: 100%; border-collapse: collapse; }
+          td, th { border: 1px solid #000; padding: 6px; }
+          img { max-width: 100%; height: auto; }
+        `;
+        sandbox.appendChild(styleEl);
+
+        const clone = element.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll('.no-print').forEach((node) => node.remove());
+        clone.querySelectorAll('*').forEach((node) => {
+          const el = node as HTMLElement;
+          el.removeAttribute('class');
+          const inline = el.getAttribute('style') || '';
+          if (inline.includes('oklch') || inline.includes('oklab') || inline.includes('lab(') || inline.includes('lch(') || inline.includes('color(')) {
+            el.removeAttribute('style');
           }
+        });
+
+        sandbox.appendChild(clone);
+        document.body.appendChild(sandbox);
+
+        try {
+          canvas = await html2canvas(sandbox, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+          });
+        } finally {
+          sandbox.remove();
         }
-      });
-      
-      // Restore original styles
-      element.style.cssText = originalStyles;
+      }
       
       const imgData = canvas.toDataURL('image/png');
       
@@ -172,8 +220,13 @@ export default function PrintSubmissionPage() {
         heightLeft -= pdfHeight;
       }
       
-      // Generate filename
-      const filename = `Lab_Manual_${submission.studentName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      // Generate filename safely even if studentName is missing/null
+      const safeStudentName = (submission.studentName || 'student')
+        .toString()
+        .trim()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_-]/g, '') || 'student';
+      const filename = `Lab_Manual_${safeStudentName}_${new Date().toISOString().split('T')[0]}.pdf`;
       
       // Download PDF
       pdf.save(filename);

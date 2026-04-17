@@ -274,7 +274,7 @@ export default function SubmissionDetailPage() {
               )}
               {submission.status === 'approved' && (
                 <button
-                  onClick={() => window.open(`/faculty/reviews/${id}/print`, '_blank')}
+                  onClick={() => window.open(`/student/submissions/${id}/print`, '_blank')}
                   className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent2)] transition flex items-center gap-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

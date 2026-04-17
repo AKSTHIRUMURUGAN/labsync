@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireAuth } from '@/lib/middleware/auth-middleware';
+import { requireAuth, requireRole } from '@/lib/middleware/auth-middleware';
 import { getDatabase } from '@/lib/mongodb';
 import { Submission } from '@/lib/models/Submission';
 import { LabSession } from '@/lib/models/LabSession';
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireRole(request, ['student']);
   
   if (authResult instanceof Response) {
     return authResult;
@@ -112,6 +112,66 @@ export async function POST(request: NextRequest) {
 
     if (!session) {
       return validationError({ labSessionId: 'Session not found' });
+    }
+
+    // If submitting (not saving draft), validate that editable sections have content
+    if (status === 'submitted') {
+      const template = await db
+        .collection('experimentTemplates')
+        .findOne({ _id: new ObjectId(experimentTemplateId) });
+
+      if (template?.sections && Array.isArray(template.sections)) {
+        const editableSections = template.sections.filter(
+          (s: any) => s.editable && ['text', 'table', 'code', 'imageUpload', 'fileUpload'].includes(s.type)
+        );
+
+        const missingSections: string[] = [];
+
+        for (const section of editableSections) {
+          const data = sectionData?.[section.id];
+
+          if (section.type === 'text') {
+            if (!data?.data || String(data.data).trim().length === 0) {
+              missingSections.push(section.title || section.id);
+            }
+          } else if (section.type === 'table') {
+            const tableData = data?.data;
+            const hasData = tableData?.rows?.some((row: any) =>
+              tableData.columns?.some(
+                (col: any) => col.type === 'input' && row.values?.[col.id] !== undefined && row.values?.[col.id] !== ''
+              )
+            );
+            if (!hasData) {
+              missingSections.push(tableData?.name || section.content?.name || section.id);
+            }
+          } else if (section.type === 'code') {
+            if (!data?.data?.code || String(data.data.code).trim().length === 0) {
+              missingSections.push(section.content?.problemTitle || section.id);
+            }
+          } else if (section.type === 'imageUpload' || section.type === 'fileUpload') {
+            if (!data?.data) {
+              missingSections.push(section.title || section.id);
+            }
+          }
+        }
+
+        if (missingSections.length > 0) {
+          return validationError({
+            content: `Please fill in all required sections before submitting: ${missingSections.join(', ')}`,
+          });
+        }
+      } else {
+        // Fallback: legacy form — require at least one of observations/results/conclusion
+        const hasObservations = observationData && observationData.length > 0;
+        const hasResults = results && String(results).trim().length > 0;
+        const hasConclusion = conclusion && String(conclusion).trim().length > 0;
+
+        if (!hasObservations && !hasResults && !hasConclusion) {
+          return validationError({
+            content: 'Please fill in at least observations, results, or conclusion before submitting',
+          });
+        }
+      }
     }
 
     // Get template for title if not provided

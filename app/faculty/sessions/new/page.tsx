@@ -17,6 +17,9 @@ interface Template {
   description: string;
 }
 
+const MIN_SESSION_DURATION_MINUTES = 30;
+const MAX_SESSION_DURATION_MINUTES = 480;
+
 export default function NewSessionPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -62,13 +65,29 @@ export default function NewSessionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+
+    const numericDuration = Number(formData.duration);
+    if (
+      !Number.isFinite(numericDuration) ||
+      numericDuration < MIN_SESSION_DURATION_MINUTES ||
+      numericDuration > MAX_SESSION_DURATION_MINUTES
+    ) {
+      setErrors({
+        duration: `Duration must be between ${MIN_SESSION_DURATION_MINUTES} and ${MAX_SESSION_DURATION_MINUTES} minutes`,
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const response = await fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          duration: numericDuration,
+        }),
       });
 
       const data = await response.json();
@@ -221,8 +240,8 @@ export default function NewSessionPage() {
               name="duration"
               value={formData.duration}
               onChange={handleChange}
-              min="30"
-              max="480"
+              min={MIN_SESSION_DURATION_MINUTES}
+              max={MAX_SESSION_DURATION_MINUTES}
               className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)] ${
                 errors.duration ? 'border-red-500' : 'border-[var(--paper3)]'
               }`}
@@ -231,7 +250,9 @@ export default function NewSessionPage() {
             {errors.duration && (
               <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
             )}
-            <p className="mt-1 text-sm text-[var(--ink3)]">Typical lab sessions are 2-3 hours (120-180 minutes)</p>
+            <p className="mt-1 text-sm text-[var(--ink3)]">
+              Allowed range: {MIN_SESSION_DURATION_MINUTES}-{MAX_SESSION_DURATION_MINUTES} minutes
+            </p>
           </div>
 
           {/* Submit Buttons */}

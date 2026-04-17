@@ -4,6 +4,7 @@ import { verifyToken } from './lib/auth';
 
 // Define public routes that don't require authentication
 const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/verify'];
+const authPages = ['/login', '/register'];
 
 // Define role-based route access
 const roleRoutes: { [key: string]: string[] } = {
@@ -14,17 +15,40 @@ const roleRoutes: { [key: string]: string[] } = {
   principal: ['/principal'],
 };
 
+function isRouteMatch(pathname: string, route: string): boolean {
+  if (route === '/') {
+    return pathname === '/';
+  }
+  return pathname === route || pathname.startsWith(`${route}/`);
+}
+
+function getRoleDashboard(role: string): string {
+  const allowedRoutes = roleRoutes[role] || [];
+  const baseRoute = allowedRoutes[0] || '/';
+  return `${baseRoute}/dashboard`;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isAuthApiRoute = pathname.startsWith('/api/auth');
+  const isPublicRoute = publicRoutes.some((route) => isRouteMatch(pathname, route));
+  const isAuthPage = authPages.some((route) => isRouteMatch(pathname, route));
+  const token = request.cookies.get('auth_token')?.value;
 
-  // Allow public routes
-  if (publicRoutes.some((route) => pathname.startsWith(route)) || pathname.startsWith('/api/auth')) {
+  // If an authenticated user tries to open login/register, redirect to dashboard.
+  if (isAuthPage && token) {
+    const payload = await verifyToken(token);
+    if (payload) {
+      return NextResponse.redirect(new URL(getRoleDashboard(payload.role), request.url));
+    }
+  }
+
+  // Allow public pages and auth APIs.
+  if (isPublicRoute || isAuthApiRoute) {
     return NextResponse.next();
   }
 
   // Check for auth token
-  const token = request.cookies.get('auth_token')?.value;
-
   if (!token) {
     // Redirect to login if no token
     const url = new URL('/login', request.url);
@@ -56,8 +80,7 @@ export async function middleware(request: NextRequest) {
 
     if (!hasAccess) {
       // Redirect to appropriate dashboard
-      const defaultRoute = allowedRoutes[0] || '/';
-      return NextResponse.redirect(new URL(defaultRoute + '/dashboard', request.url));
+      return NextResponse.redirect(new URL(getRoleDashboard(userRole), request.url));
     }
   }
 

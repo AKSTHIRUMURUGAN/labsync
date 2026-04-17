@@ -13,7 +13,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 let app: FirebaseApp;
-let auth: Auth;
+let auth: Auth; 
 
 if (typeof window !== 'undefined') {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];

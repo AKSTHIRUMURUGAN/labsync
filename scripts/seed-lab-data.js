@@ -1,6 +1,6 @@
 const { MongoClient, ObjectId } = require('mongodb');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://i2r:i2r@i2r.5fnktzf.mongodb.net/labsync?retryWrites=true&w=majority&tls=true';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/labsync';
 
 async function seedLabData() {
   const client = new MongoClient(MONGODB_URI);

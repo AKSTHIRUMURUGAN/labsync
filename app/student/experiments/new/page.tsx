@@ -150,6 +150,79 @@ function NewExperimentForm() {
     setLoading(true);
     setError('');
 
+    // Client-side validation: when submitting (not saving draft), ensure all
+    // editable sections have been filled in by the student.
+    if (status === 'submitted') {
+      if (template?.sections && template.sections.length > 0) {
+        // Find all sections the student is required to fill
+        const editableSections = template.sections.filter(
+          (s: any) => s.editable && (s.type === 'text' || s.type === 'table' || s.type === 'code' || s.type === 'imageUpload' || s.type === 'fileUpload')
+        );
+
+        const missingSections: string[] = [];
+
+        for (const section of editableSections) {
+          const data = sectionData[section.id];
+
+          if (section.type === 'text') {
+            if (!data?.data || data.data.trim().length === 0) {
+              // Find the preceding heading to use as a label
+              const idx = template.sections.indexOf(section);
+              let label = section.title || 'Text section';
+              for (let i = idx - 1; i >= 0; i--) {
+                if (template.sections[i].type === 'heading') {
+                  label = template.sections[i].content;
+                  break;
+                }
+              }
+              missingSections.push(label);
+            }
+          } else if (section.type === 'table') {
+            // Table is considered filled if at least one input cell has a value
+            const tableData = data?.data;
+            const hasData = tableData?.rows?.some((row: any) =>
+              tableData.columns?.some(
+                (col: any) => col.type === 'input' && row.values?.[col.id] !== undefined && row.values?.[col.id] !== ''
+              )
+            );
+            if (!hasData) {
+              missingSections.push(tableData?.name || section.content?.name || 'Observation Table');
+            }
+          } else if (section.type === 'code') {
+            if (!data?.data?.code || data.data.code.trim().length === 0) {
+              missingSections.push(section.content?.problemTitle || 'Code Problem');
+            }
+          } else if (section.type === 'imageUpload') {
+            if (!data?.data) {
+              missingSections.push(section.title || 'Image Upload');
+            }
+          } else if (section.type === 'fileUpload') {
+            if (!data?.data) {
+              missingSections.push(section.title || 'File Upload');
+            }
+          }
+        }
+
+        if (missingSections.length > 0) {
+          setError(`Please fill in the following required sections before submitting:\n• ${missingSections.join('\n• ')}`);
+          setLoading(false);
+          return;
+        }
+      } else {
+        // Fallback form validation
+        const missing: string[] = [];
+        if (!formData.observations.trim()) missing.push('Observations');
+        if (!formData.results.trim()) missing.push('Result / Output');
+        if (!formData.conclusion.trim()) missing.push('Conclusion');
+
+        if (missing.length > 0) {
+          setError(`Please fill in the following required fields before submitting:\n• ${missing.join('\n• ')}`);
+          setLoading(false);
+          return;
+        }
+      }
+    }
+
     try {
       console.log('📤 Current sectionData state:', JSON.stringify(sectionData, null, 2));
       console.log('📊 Number of sections with data:', Object.keys(sectionData).length);
@@ -286,7 +359,9 @@ function NewExperimentForm() {
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
-            {error}
+            {error.split('\n').map((line, i) => (
+              <p key={i} className={i > 0 ? 'mt-1' : ''}>{line}</p>
+            ))}
           </div>
         )}
 

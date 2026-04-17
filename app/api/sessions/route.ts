@@ -5,6 +5,9 @@ import { LabSession } from '@/lib/models/LabSession';
 import { successResponse, validationError, conflictError, serverError } from '@/lib/api-response';
 import { ObjectId } from 'mongodb';
 
+const MIN_SESSION_DURATION_MINUTES = 30;
+const MAX_SESSION_DURATION_MINUTES = 480;
+
 export async function GET(request: NextRequest) {
   const authResult = await requireRole(request, ['student', 'lab_faculty', 'hod', 'principal']);
   
@@ -58,12 +61,17 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { labGroupId, experimentTemplateId, duration, location, equipment } = body;
+    const numericDuration = Number(duration);
 
     // Validation
     const errors: { [key: string]: string } = {};
     if (!labGroupId) errors.labGroupId = 'Lab group ID is required';
     if (!experimentTemplateId) errors.experimentTemplateId = 'Experiment template ID is required';
-    if (!duration || duration <= 0) errors.duration = 'Valid duration is required';
+    if (!Number.isFinite(numericDuration)) {
+      errors.duration = 'Duration must be a valid number';
+    } else if (numericDuration < MIN_SESSION_DURATION_MINUTES || numericDuration > MAX_SESSION_DURATION_MINUTES) {
+      errors.duration = `Duration must be between ${MIN_SESSION_DURATION_MINUTES} and ${MAX_SESSION_DURATION_MINUTES} minutes`;
+    }
 
     if (Object.keys(errors).length > 0) {
       return validationError(errors);
@@ -100,7 +108,7 @@ export async function POST(request: NextRequest) {
       conductedBy: new ObjectId(authResult.userId),
       status: 'created',
       startTime: new Date(),
-      duration,
+      duration: numericDuration,
       location,
       equipment: equipment ? equipment.map((id: string) => new ObjectId(id)) : [],
       createdAt: new Date(),

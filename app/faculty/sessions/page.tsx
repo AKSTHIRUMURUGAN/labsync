@@ -19,6 +19,7 @@ export default function FacultySessionsPage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionActionLoading, setSessionActionLoading] = useState<Record<string, 'start' | 'stop' | null>>({});
 
   useEffect(() => {
     fetchSessions();
@@ -45,30 +46,36 @@ export default function FacultySessionsPage() {
   };
 
   const handleStartSession = async (sessionId: string) => {
+    setSessionActionLoading((prev) => ({ ...prev, [sessionId]: 'start' }));
     try {
       const response = await fetch(`/api/sessions/${sessionId}/start`, {
         method: 'POST',
       });
       const data = await response.json();
       if (data.success) {
-        fetchSessions();
+        await fetchSessions();
       }
     } catch (error) {
       console.error('Failed to start session');
+    } finally {
+      setSessionActionLoading((prev) => ({ ...prev, [sessionId]: null }));
     }
   };
 
   const handleStopSession = async (sessionId: string) => {
+    setSessionActionLoading((prev) => ({ ...prev, [sessionId]: 'stop' }));
     try {
       const response = await fetch(`/api/sessions/${sessionId}/stop`, {
         method: 'POST',
       });
       const data = await response.json();
       if (data.success) {
-        fetchSessions();
+        await fetchSessions();
       }
     } catch (error) {
       console.error('Failed to stop session');
+    } finally {
+      setSessionActionLoading((prev) => ({ ...prev, [sessionId]: null }));
     }
   };
 
@@ -164,17 +171,19 @@ export default function FacultySessionsPage() {
                   {session.status === 'created' && (
                     <button
                       onClick={() => handleStartSession(session._id)}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
+                      disabled={sessionActionLoading[session._id] === 'start' || sessionActionLoading[session._id] === 'stop'}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Start
+                      {sessionActionLoading[session._id] === 'start' ? 'Starting...' : 'Start'}
                     </button>
                   )}
                   {session.status === 'active' && (
                     <button
                       onClick={() => handleStopSession(session._id)}
-                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm"
+                      disabled={sessionActionLoading[session._id] === 'start' || sessionActionLoading[session._id] === 'stop'}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Stop
+                      {sessionActionLoading[session._id] === 'stop' ? 'Stopping...' : 'Stop'}
                     </button>
                   )}
                   <Link

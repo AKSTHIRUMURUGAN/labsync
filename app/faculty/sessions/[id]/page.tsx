@@ -35,6 +35,7 @@ export default function SessionDetailPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<'start' | 'stop' | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -70,36 +71,42 @@ export default function SessionDetailPage() {
   };
 
   const handleStartSession = async () => {
+    setActionLoading('start');
     try {
       const response = await fetch(`/api/sessions/${id}/start`, {
         method: 'POST',
       });
       const data = await response.json();
       if (data.success) {
-        fetchSession();
+        await fetchSession();
       } else {
         alert(data.error?.message || 'Failed to start session');
       }
     } catch (error) {
       alert('Failed to start session');
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleStopSession = async () => {
     if (!confirm('Are you sure you want to end this session?')) return;
 
+    setActionLoading('stop');
     try {
       const response = await fetch(`/api/sessions/${id}/stop`, {
         method: 'POST',
       });
       const data = await response.json();
       if (data.success) {
-        fetchSession();
+        await fetchSession();
       } else {
         alert(data.error?.message || 'Failed to stop session');
       }
     } catch (error) {
       alert('Failed to stop session');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -201,17 +208,19 @@ export default function SessionDetailPage() {
               {session.status === 'created' && (
                 <button
                   onClick={handleStartSession}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+                  disabled={actionLoading !== null}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Start Session
+                  {actionLoading === 'start' ? 'Starting Session...' : 'Start Session'}
                 </button>
               )}
               {session.status === 'active' && (
                 <button
                   onClick={handleStopSession}
-                  className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
+                  disabled={actionLoading !== null}
+                  className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  End Session
+                  {actionLoading === 'stop' ? 'Ending Session...' : 'End Session'}
                 </button>
               )}
             </div>
