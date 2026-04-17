@@ -752,8 +752,22 @@ export default function CreateTemplatePage() {
       return;
     }
 
-    if (!departmentId) {
-      alert('Department information not found. Please try logging in again.');
+    let resolvedDepartmentId = departmentId;
+    if (!resolvedDepartmentId) {
+      try {
+        const response = await fetch('/api/auth/me');
+        const data = await response.json();
+        if (data.success && data.data.departmentId) {
+          resolvedDepartmentId = data.data.departmentId;
+          setDepartmentId(data.data.departmentId);
+        }
+      } catch (error) {
+        console.error('Failed to refetch department information', error);
+      }
+    }
+
+    if (!resolvedDepartmentId) {
+      alert('Department is not assigned to your account. Contact coordinator/admin.');
       return;
     }
 
@@ -785,7 +799,7 @@ export default function CreateTemplatePage() {
           ],
           requiredFields: ['aim', 'apparatus', 'procedure', 'observations', 'output', 'conclusion'],
           calculationRules: [],
-          departmentId,
+          departmentId: resolvedDepartmentId,
         }),
       });
 

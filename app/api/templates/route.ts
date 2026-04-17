@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireRole } from '@/lib/middleware/auth-middleware';
 import { getDatabase } from '@/lib/mongodb';
 import { ExperimentTemplate } from '@/lib/models/ExperimentTemplate';
+import { User } from '@/lib/models/User';
 import { successResponse, validationError, serverError } from '@/lib/api-response';
 import { ObjectId } from 'mongodb';
 
@@ -64,19 +65,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, description, objectives, steps, observationTables, requiredFields, calculationRules, departmentId, sections } = body;
 
+    const db = await getDatabase();
+    let resolvedDepartmentId = departmentId;
+
+    // Fallback: derive department from authenticated user's profile.
+    if (!resolvedDepartmentId) {
+      const user = await db
+        .collection<User>('users')
+        .findOne({ _id: new ObjectId(authResult.userId) }, { projection: { departmentId: 1 } });
+
+      if (user?.departmentId) {
+        resolvedDepartmentId = user.departmentId.toString();
+      }
+    }
+
     // Validation
     const errors: { [key: string]: string } = {};
     if (!title) errors.title = 'Title is required';
     if (!description) errors.description = 'Description is required';
     if (!objectives || objectives.length === 0) errors.objectives = 'At least one objective is required';
     if (!observationTables || observationTables.length === 0) errors.observationTables = 'At least one observation table is required';
-    if (!departmentId) errors.departmentId = 'Department ID is required';
+    if (!resolvedDepartmentId) errors.departmentId = 'Department is not assigned to this account';
 
     if (Object.keys(errors).length > 0) {
       return validationError(errors);
     }
 
-    const db = await getDatabase();
     const template: any = {
       version: '1.0.0',
       title,
@@ -88,7 +102,7 @@ export async function POST(request: NextRequest) {
       calculationRules: calculationRules || [],
       sections: sections || [], // Save sections
       createdBy: new ObjectId(authResult.userId),
-      departmentId: new ObjectId(departmentId),
+      departmentId: new ObjectId(resolvedDepartmentId),
       active: true,
       createdAt: new Date(),
       updatedAt: new Date(),
