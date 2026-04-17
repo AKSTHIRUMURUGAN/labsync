@@ -766,11 +766,6 @@ export default function CreateTemplatePage() {
       }
     }
 
-    if (!resolvedDepartmentId) {
-      alert('Department is not assigned to your account. Contact coordinator/admin.');
-      return;
-    }
-
     const validObjectives = objectives.filter(obj => obj.trim() !== '');
     const validProcedures = procedures.filter(proc => proc.trim() !== '');
 
@@ -799,7 +794,7 @@ export default function CreateTemplatePage() {
           ],
           requiredFields: ['aim', 'apparatus', 'procedure', 'observations', 'output', 'conclusion'],
           calculationRules: [],
-          departmentId: resolvedDepartmentId,
+          departmentId: resolvedDepartmentId || undefined,
         }),
       });
 

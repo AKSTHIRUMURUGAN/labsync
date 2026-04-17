@@ -79,13 +79,60 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Additional fallback chain to support bootstrapping before coordinator assignment.
+    if (!resolvedDepartmentId) {
+      const ownTemplate = await db
+        .collection<ExperimentTemplate>('experimentTemplates')
+        .findOne(
+          { createdBy: new ObjectId(authResult.userId) },
+          { sort: { createdAt: -1 }, projection: { departmentId: 1 } }
+        );
+
+      if (ownTemplate?.departmentId) {
+        resolvedDepartmentId = ownTemplate.departmentId.toString();
+      }
+    }
+
+    if (!resolvedDepartmentId) {
+      const ownGroup = await db
+        .collection('labGroups')
+        .findOne(
+          { createdBy: new ObjectId(authResult.userId) },
+          { sort: { createdAt: -1 }, projection: { departmentId: 1 } }
+        );
+
+      if ((ownGroup as any)?.departmentId) {
+        resolvedDepartmentId = (ownGroup as any).departmentId.toString();
+      }
+    }
+
+    if (!resolvedDepartmentId) {
+      const anyGroup = await db
+        .collection('labGroups')
+        .findOne({}, { sort: { createdAt: -1 }, projection: { departmentId: 1 } });
+
+      if ((anyGroup as any)?.departmentId) {
+        resolvedDepartmentId = (anyGroup as any).departmentId.toString();
+      }
+    }
+
+    if (!resolvedDepartmentId) {
+      const anyTemplate = await db
+        .collection<ExperimentTemplate>('experimentTemplates')
+        .findOne({}, { sort: { createdAt: -1 }, projection: { departmentId: 1 } });
+
+      if (anyTemplate?.departmentId) {
+        resolvedDepartmentId = anyTemplate.departmentId.toString();
+      }
+    }
+
     // Validation
     const errors: { [key: string]: string } = {};
     if (!title) errors.title = 'Title is required';
     if (!description) errors.description = 'Description is required';
     if (!objectives || objectives.length === 0) errors.objectives = 'At least one objective is required';
     if (!observationTables || observationTables.length === 0) errors.observationTables = 'At least one observation table is required';
-    if (!resolvedDepartmentId) errors.departmentId = 'Department is not assigned to this account';
+    if (!resolvedDepartmentId) errors.departmentId = 'No department context available yet. Create one lab group first or assign department to your account.';
 
     if (Object.keys(errors).length > 0) {
       return validationError(errors);
