@@ -130,7 +130,6 @@ export async function POST(request: NextRequest) {
     const errors: { [key: string]: string } = {};
     if (!title) errors.title = 'Title is required';
     if (!description) errors.description = 'Description is required';
-    if (!objectives || objectives.length === 0) errors.objectives = 'At least one objective is required';
     if (!observationTables || observationTables.length === 0) errors.observationTables = 'At least one observation table is required';
     if (!resolvedDepartmentId) errors.departmentId = 'No department context available yet. Create one lab group first or assign department to your account.';
 
@@ -142,7 +141,7 @@ export async function POST(request: NextRequest) {
       version: '1.0.0',
       title,
       description,
-      objectives,
+      objectives: objectives || [],
       steps: steps || [],
       observationTables,
       requiredFields: requiredFields || [],

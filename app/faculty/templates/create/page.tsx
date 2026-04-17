@@ -769,11 +769,6 @@ export default function CreateTemplatePage() {
     const validObjectives = objectives.filter(obj => obj.trim() !== '');
     const validProcedures = procedures.filter(proc => proc.trim() !== '');
 
-    if (validObjectives.length === 0) {
-      alert('Please add at least one objective');
-      return;
-    }
-
     setLoading(true);
     try {
       const response = await fetch('/api/templates', {
