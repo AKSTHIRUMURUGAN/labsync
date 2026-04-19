@@ -25,6 +25,25 @@ export async function GET(request: NextRequest) {
     const db = await getDatabase();
     const query: any = {};
 
+    if (authResult.role === 'student') {
+      const enrolledGroups = await db
+        .collection('labGroups')
+        .find(
+          { students: new ObjectId(authResult.userId) },
+          { projection: { _id: 1 } }
+        )
+        .toArray();
+
+      const enrolledGroupIds = enrolledGroups.map((group: any) => group._id);
+
+      // Apply membership filter only when enrollment data exists.
+      // If no enrollment mapping is present yet, keep backward-compatible behavior
+      // so active sessions are still visible on the student dashboard.
+      if (enrolledGroupIds.length > 0) {
+        query.labGroupId = { $in: enrolledGroupIds };
+      }
+    }
+
     if (status) {
       query.status = status;
     }

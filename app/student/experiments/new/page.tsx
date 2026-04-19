@@ -47,10 +47,23 @@ function NewExperimentForm() {
         // Fetch the template from the session
         if (data.data.experimentTemplateId) {
           fetchTemplate(data.data.experimentTemplateId);
+        } else if (templateId) {
+          // Fallback to template query param if session payload is missing template id.
+          fetchTemplate(templateId);
+        }
+      } else {
+        setError(data.error?.message || 'Unable to load session details.');
+        // Keep page usable by loading template directly when provided.
+        if (templateId) {
+          fetchTemplate(templateId);
         }
       }
     } catch (error) {
       console.error('Failed to fetch session', error);
+      setError('Failed to load session details.');
+      if (templateId) {
+        fetchTemplate(templateId);
+      }
     }
   };
 

@@ -244,6 +244,29 @@ export default function PrintSubmissionPage() {
     return tmp.textContent || tmp.innerText || '';
   };
 
+  const normalizeLabel = (value: string) =>
+    String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+
+  const duplicateHeadingLabels = new Set<string>();
+  if (template?.sections && Array.isArray(template.sections)) {
+    const templateSections = template.sections;
+    templateSections.forEach((section: any, index: number) => {
+      const isStudentEditable = section?.editable && ['text', 'table', 'code', 'imageUpload', 'fileUpload'].includes(section?.type);
+      if (!isStudentEditable) return;
+
+      for (let i = index - 1; i >= 0; i--) {
+        const prev = templateSections[i];
+        if (prev?.type === 'heading' && prev?.content) {
+          duplicateHeadingLabels.add(normalizeLabel(prev.content));
+          break;
+        }
+      }
+    });
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -531,6 +554,7 @@ export default function PrintSubmissionPage() {
           <div className="mb-6">
             {template.sections
               .filter(section => !section.editable && (section.type === 'heading' || section.type === 'text' || section.type === 'image' || section.type === 'divider'))
+              .filter(section => !(section.type === 'heading' && duplicateHeadingLabels.has(normalizeLabel(section.content))))
               .map((section) => (
                 <div key={section.id} className="mb-4">
                   {section.type === 'heading' && section.content && (
