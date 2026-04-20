@@ -83,9 +83,11 @@ export default function FacultyReviewDetailPage() {
     }
   };
 
-  const handleReview = async (action: 'approve' | 'reject') => {
+  const handleReview = async (action: 'approve' | 'reject' | 'redo') => {
     if (!reviewComments.trim()) {
-      alert('Please provide review comments');
+      alert(action === 'redo'
+        ? 'Please provide guidance on what the student needs to redo'
+        : 'Please provide review comments');
       return;
     }
 
@@ -389,33 +391,64 @@ export default function FacultyReviewDetailPage() {
         {submission.status === 'submitted' && (
           <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
             <h3 className="text-lg font-bold text-[var(--ink)] heading mb-4">Review Submission</h3>
-            <div className="mb-4">
+            <div className="mb-5">
               <label className="block text-sm font-medium text-[var(--ink)] mb-2">
-                Review Comments
+                Comments / Guidance
               </label>
               <textarea
                 value={reviewComments}
                 onChange={(e) => setReviewComments(e.target.value)}
                 rows={4}
                 className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none"
-                placeholder="Provide feedback for the student..."
+                placeholder="Provide feedback, approval notes, or redo guidance for the student..."
               />
             </div>
-            <div className="flex gap-4">
+
+            {/* Three action buttons */}
+            <div className="flex gap-3">
+              {/* Reject */}
               <button
                 onClick={() => handleReview('reject')}
                 disabled={submitting}
-                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 font-medium"
               >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
                 {submitting ? 'Processing...' : 'Reject'}
               </button>
+
+              {/* Request Redo — between Reject and Approve */}
+              <button
+                onClick={() => handleReview('redo')}
+                disabled={submitting}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition disabled:opacity-50 font-medium"
+                title="Student keeps their work and can edit & resubmit"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {submitting ? 'Processing...' : 'Request Redo'}
+              </button>
+
+              {/* Approve */}
               <button
                 onClick={() => handleReview('approve')}
                 disabled={submitting}
-                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 font-medium"
               >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
                 {submitting ? 'Processing...' : 'Approve'}
               </button>
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-[var(--ink3)]">
+              <p className="text-center">Reject — work is wrong, student must start fresh</p>
+              <p className="text-center text-amber-700">Request Redo — student edits existing work and resubmits</p>
+              <p className="text-center">Approve — work is complete and correct</p>
             </div>
           </div>
         )}

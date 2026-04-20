@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import StudentObservationTable from '@/app/components/TemplateEditor/StudentObservationTable';
@@ -26,6 +27,8 @@ function NewExperimentForm() {
   const [sectionData, setSectionData] = useState<{ [key: string]: any }>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const submitAreaRef = useRef<HTMLDivElement>(null);
 
   // Check if this is from an active session (read-only template fields)
   const isFromSession = !!sessionId;
@@ -48,19 +51,18 @@ function NewExperimentForm() {
         if (data.data.experimentTemplateId) {
           fetchTemplate(data.data.experimentTemplateId);
         } else if (templateId) {
-          // Fallback to template query param if session payload is missing template id.
           fetchTemplate(templateId);
         }
       } else {
-        setError(data.error?.message || 'Unable to load session details.');
-        // Keep page usable by loading template directly when provided.
+        // Session not accessible (e.g. not enrolled) — silently fall back to
+        // loading the template directly. The backend will enforce access on submit.
         if (templateId) {
           fetchTemplate(templateId);
         }
       }
     } catch (error) {
       console.error('Failed to fetch session', error);
-      setError('Failed to load session details.');
+      // Same silent fallback on network error
       if (templateId) {
         fetchTemplate(templateId);
       }
@@ -217,8 +219,10 @@ function NewExperimentForm() {
         }
 
         if (missingSections.length > 0) {
-          setError(`Please fill in the following required sections before submitting:\n• ${missingSections.join('\n• ')}`);
+          setValidationErrors(missingSections);
           setLoading(false);
+          // Scroll the submit area into view so the error is visible
+          setTimeout(() => submitAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
           return;
         }
       } else {
@@ -229,8 +233,9 @@ function NewExperimentForm() {
         if (!formData.conclusion.trim()) missing.push('Conclusion');
 
         if (missing.length > 0) {
-          setError(`Please fill in the following required fields before submitting:\n• ${missing.join('\n• ')}`);
+          setValidationErrors(missing);
           setLoading(false);
+          setTimeout(() => submitAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
           return;
         }
       }
@@ -371,10 +376,8 @@ function NewExperimentForm() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
-            {error.split('\n').map((line, i) => (
-              <p key={i} className={i > 0 ? 'mt-1' : ''}>{line}</p>
-            ))}
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            {error}
           </div>
         )}
 
@@ -766,7 +769,7 @@ function NewExperimentForm() {
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-4">
+          <div ref={submitAreaRef} className="flex gap-4">
             <button
               type="button"
               onClick={(e) => handleSubmit(e, 'draft')}
@@ -785,6 +788,52 @@ function NewExperimentForm() {
             </button>
           </div>
         </form>
+
+        {/* Validation Error Modal — shown as a centered popup when required sections are empty */}
+        {validationErrors.length > 0 && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+            onClick={() => setValidationErrors([])}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-bounce-in"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Icon + Title */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Incomplete Submission</h3>
+                  <p className="text-sm text-gray-500">Please fill in all required sections</p>
+                </div>
+              </div>
+
+              {/* Missing sections list */}
+              <ul className="space-y-2 mb-6">
+                {validationErrors.map((section, i) => (
+                  <li key={i} className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                    <span className="text-sm font-medium text-red-800">{section}</span>
+                    <span className="ml-auto text-xs text-red-500 font-medium">Required</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Action */}
+              <button
+                onClick={() => setValidationErrors([])}
+                className="w-full py-3 bg-[var(--accent)] text-white rounded-xl font-semibold hover:bg-[var(--accent2)] transition"
+              >
+                Got it — I'll fill them in
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

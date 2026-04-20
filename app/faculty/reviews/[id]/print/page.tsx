@@ -284,21 +284,43 @@ export default function PrintSubmissionPage() {
   }
 
   return (
-    <>
+    <div className="print-root">
       <style jsx global>{`
         @media print {
           @page {
-            margin: 2cm;
+            margin: 1.5cm;
             size: A4;
           }
           
+          /* Hide absolutely everything except the print container */
+          body > *:not(.print-root) {
+            display: none !important;
+          }
+
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
-          
-          .no-print {
+
+          /* Hide buttons, nav, and any screen-only elements */
+          .no-print,
+          header,
+          nav,
+          button,
+          [class*="fixed"],
+          [class*="sticky"] {
             display: none !important;
+          }
+
+          /* Make the print container fill the page */
+          .print-container {
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
           }
           
           .page-break {
@@ -428,7 +450,7 @@ export default function PrintSubmissionPage() {
       {/* Action Buttons - Only visible on screen */}
       <div className="no-print fixed top-4 right-4 z-50 flex gap-3">
         <button
-          onClick={handlePrint}
+          onClick={() => window.print()}
           className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg flex items-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -940,6 +962,6 @@ export default function PrintSubmissionPage() {
           <p className="mt-1">LabSync - Laboratory Management System</p>
         </div>
       </div>
-    </>
+    </div>
   );
 }

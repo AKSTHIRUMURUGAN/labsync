@@ -42,6 +42,8 @@ export default function SubmissionDetailPage() {
     results: '',
     conclusion: '',
   });
+  // Track edits to template sections (text, table, code, image, file)
+  const [editSectionData, setEditSectionData] = useState<{ [key: string]: any }>({});
 
   useEffect(() => {
     if (id) {
@@ -74,6 +76,8 @@ export default function SubmissionDetailPage() {
           results: data.data.results || '',
           conclusion: data.data.conclusion || '',
         });
+        // Pre-populate section edit state from saved sectionData
+        setEditSectionData(data.data.sectionData || {});
       }
     } catch (error) {
       console.error('Failed to fetch submission', error);
@@ -112,6 +116,8 @@ export default function SubmissionDetailPage() {
           }] : [],
           results: formData.results,
           conclusion: formData.conclusion,
+          // Save updated section data when template sections are used
+          sectionData: Object.keys(editSectionData).length > 0 ? editSectionData : undefined,
         }),
       });
 
@@ -304,15 +310,38 @@ export default function SubmissionDetailPage() {
 
         {/* Rejection Reason - Show helpful message for resubmission */}
         {submission.rejectionReason && (
-          <div className="mb-6 p-4 bg-orange-50 border border-orange-300 rounded-lg">
-            <h3 className="font-bold text-orange-900 mb-2">
-              {submission.status === 'in_progress' ? '⚠️ Submission Needs Revision' : 'Rejection Reason'}
-            </h3>
-            <p className="text-orange-800 mb-3">{submission.rejectionReason}</p>
-            {submission.status === 'in_progress' && (
-              <p className="text-sm text-orange-700 bg-orange-100 p-2 rounded">
-                <strong>Action Required:</strong> Please review the feedback above, make necessary changes, and resubmit your work for review.
-              </p>
+          <div className={`mb-6 p-4 rounded-lg border ${
+            submission.rejectionReason.startsWith('REDO_REQUESTED:')
+              ? 'bg-amber-50 border-amber-300'
+              : 'bg-orange-50 border-orange-300'
+          }`}>
+            {submission.rejectionReason.startsWith('REDO_REQUESTED:') ? (
+              <>
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <h3 className="font-bold text-amber-900">Redo Requested by Faculty</h3>
+                </div>
+                <p className="text-amber-800 mb-3">
+                  {submission.rejectionReason.replace('REDO_REQUESTED:', '').trim()}
+                </p>
+                <p className="text-sm text-amber-700 bg-amber-100 p-2 rounded">
+                  <strong>Your existing work is preserved.</strong> Review the guidance above, make the necessary changes, and resubmit.
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="font-bold text-orange-900 mb-2">
+                  {submission.status === 'in_progress' ? '⚠️ Submission Needs Revision' : 'Rejection Reason'}
+                </h3>
+                <p className="text-orange-800 mb-3">{submission.rejectionReason}</p>
+                {submission.status === 'in_progress' && (
+                  <p className="text-sm text-orange-700 bg-orange-100 p-2 rounded">
+                    <strong>Action Required:</strong> Please review the feedback above, make necessary changes, and resubmit your work for review.
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}
@@ -421,140 +450,235 @@ export default function SubmissionDetailPage() {
 
           {/* Render Code and Table Sections from Template */}
           {template?.sections && template.sections.map((section: any, index: number) => {
-            const studentData = submission?.sectionData?.[section.id];
-            
-            // Render editable text sections - use previous heading as title
-            if (section.type === 'text' && section.editable && studentData?.data) {
-              // Find the previous heading section to use as title
-              let title = 'Student Input';
+            // Use editSectionData when editing, otherwise fall back to saved sectionData
+            const savedData = submission?.sectionData?.[section.id];
+            const currentData = isEditing
+              ? (editSectionData[section.id] ?? savedData)
+              : savedData;
+
+            // Non-editable heading — always read-only
+            if (section.type === 'heading' && !section.editable) {
+              return (
+                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                  <h2 className="text-2xl font-bold text-[var(--ink)] heading">{section.content}</h2>
+                </div>
+              );
+            }
+
+            // Non-editable text — always read-only
+            if (section.type === 'text' && !section.editable) {
+              return (
+                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
+                  <div className="prose max-w-none text-[var(--ink2)]" dangerouslySetInnerHTML={{ __html: section.content }} />
+                </div>
+              );
+            }
+
+            // Editable text section
+            if (section.type === 'text' && section.editable) {
+              let title = section.title || 'Text Section';
               for (let i = index - 1; i >= 0; i--) {
                 if (template.sections[i].type === 'heading') {
                   title = template.sections[i].content;
                   break;
                 }
               }
-              
               return (
-                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4">
+                <div key={section.id} className={`bg-white rounded-xl border-2 p-6 ${isEditing ? 'border-[var(--accent)]' : 'border-[var(--paper3)]'}`}>
+                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4 flex items-center gap-2">
                     {title}
+                    {isEditing && <span className="text-xs font-normal text-[var(--accent)] bg-blue-50 px-2 py-1 rounded">Editing</span>}
                   </h3>
-                  <div className="text-[var(--ink2)] whitespace-pre-wrap p-3 bg-[var(--paper)] rounded-lg">
-                    {studentData.data || 'Not provided'}
-                  </div>
-                </div>
-              );
-            }
-            
-            // Render image upload sections
-            if (section.type === 'imageUpload' && studentData?.data) {
-              return (
-                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4">
-                    {section.title || 'Uploaded Image'}
-                  </h3>
-                  <div className="space-y-3">
-                    <img 
-                      src={studentData.data} 
-                      alt={studentData.fileName || 'Uploaded image'} 
-                      className="max-w-full h-auto rounded-lg border border-[var(--paper3)] shadow-sm"
+                  {isEditing ? (
+                    <textarea
+                      value={editSectionData[section.id]?.data ?? (savedData?.data || '')}
+                      onChange={(e) => setEditSectionData(prev => ({
+                        ...prev,
+                        [section.id]: { type: 'text', data: e.target.value, title }
+                      }))}
+                      rows={6}
+                      className="w-full px-4 py-3 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] outline-none resize-none"
+                      placeholder="Enter your text..."
                     />
-                    {studentData.fileName && (
-                      <p className="text-sm text-[var(--ink3)]">
-                        <strong>File:</strong> {studentData.fileName}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            }
-            
-            // Render file upload sections
-            if (section.type === 'fileUpload' && studentData?.data) {
-              return (
-                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4">
-                    {section.title || 'Uploaded File'}
-                  </h3>
-                  <div className="p-4 bg-[var(--paper)] rounded-lg border border-[var(--paper3)]">
-                    <div className="flex items-center gap-3">
-                      <svg className="w-10 h-10 text-[var(--accent)]" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd"/>
-                      </svg>
-                      <div className="flex-1">
-                        <p className="font-medium text-[var(--ink)]">{studentData.fileName || 'Uploaded file'}</p>
-                        {studentData.fileSize && (
-                          <p className="text-sm text-[var(--ink3)]">
-                            Size: {(studentData.fileSize / 1024).toFixed(2)} KB
-                          </p>
-                        )}
-                        {studentData.fileType && (
-                          <p className="text-xs text-[var(--ink3)]">
-                            Type: {studentData.fileType}
-                          </p>
-                        )}
-                      </div>
-                      <a
-                        href={studentData.data}
-                        download={studentData.fileName}
-                        className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent2)] transition text-sm"
-                      >
-                        Download
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-            
-            if (section.type === 'table' && section.content) {
-              // Merge template structure with student data
-              const tableData = studentData?.data || section.content;
-              
-              return (
-                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4">{section.content.name || 'Observation Table'}</h3>
-                  <StudentObservationTable 
-                    tableData={tableData}
-                    readOnly={true}
-                  />
-                </div>
-              );
-            }
-            
-            if (section.type === 'code' && section.content) {
-              // Merge template structure with student code
-              const codeData = {
-                ...section.content,
-                code: studentData?.data?.code || section.content.code,
-                language: studentData?.data?.language || section.content.selectedLanguage
-              };
-              
-              return (
-                <div key={section.id} className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4">{section.content.problemTitle || 'Code Problem'}</h3>
-                  <StudentCodeCompiler 
-                    codeData={codeData}
-                    readOnly={false}
-                  />
-                  {studentData?.data?.testResults && studentData.data.testResults.length > 0 && (
-                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h4 className="font-semibold text-[var(--ink)] mb-2">Submission Test Results:</h4>
-                      <div className="space-y-2">
-                        {studentData.data.testResults.map((result: any, idx: number) => (
-                          <div key={idx} className={`p-2 rounded text-sm ${
-                            result.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            Test Case {idx + 1}: {result.passed ? '✓ Passed' : '✗ Failed'}
-                          </div>
-                        ))}
-                      </div>
+                  ) : (
+                    <div className="text-[var(--ink2)] whitespace-pre-wrap p-3 bg-[var(--paper)] rounded-lg">
+                      {currentData?.data || 'Not provided'}
                     </div>
                   )}
                 </div>
               );
             }
-            
+
+            // Editable table section
+            if (section.type === 'table' && section.content) {
+              const tableData = currentData?.data || section.content;
+              return (
+                <div key={section.id} className={`bg-white rounded-xl border-2 p-6 ${isEditing && section.editable ? 'border-[var(--accent)]' : 'border-[var(--paper3)]'}`}>
+                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4 flex items-center gap-2">
+                    {section.content.name || 'Observation Table'}
+                    {isEditing && section.editable && <span className="text-xs font-normal text-[var(--accent)] bg-blue-50 px-2 py-1 rounded">Editing</span>}
+                  </h3>
+                  <StudentObservationTable
+                    tableData={tableData}
+                    readOnly={!isEditing || !section.editable}
+                    onChange={(data) => {
+                      if (isEditing && section.editable) {
+                        setEditSectionData(prev => ({ ...prev, [section.id]: { type: 'table', data } }));
+                      }
+                    }}
+                  />
+                </div>
+              );
+            }
+
+            // Editable code section
+            if (section.type === 'code' && section.content) {
+              const codeData = {
+                ...section.content,
+                code: (isEditing ? editSectionData[section.id]?.data?.code : savedData?.data?.code) ?? section.content.code,
+                language: (isEditing ? editSectionData[section.id]?.data?.language : savedData?.data?.language) ?? section.content.selectedLanguage,
+              };
+              return (
+                <div key={section.id} className={`bg-white rounded-xl border-2 p-6 ${isEditing && section.editable ? 'border-[var(--accent)]' : 'border-[var(--paper3)]'}`}>
+                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4 flex items-center gap-2">
+                    {section.content.problemTitle || 'Code Problem'}
+                    {isEditing && section.editable && <span className="text-xs font-normal text-[var(--accent)] bg-blue-50 px-2 py-1 rounded">Editing</span>}
+                  </h3>
+                  <StudentCodeCompiler
+                    codeData={codeData}
+                    readOnly={!isEditing || !section.editable}
+                    onChange={(data) => {
+                      if (isEditing && section.editable) {
+                        setEditSectionData(prev => ({ ...prev, [section.id]: { type: 'code', data } }));
+                      }
+                    }}
+                  />
+                </div>
+              );
+            }
+
+            // Image upload section
+            if (section.type === 'imageUpload') {
+              return (
+                <div key={section.id} className={`bg-white rounded-xl border-2 p-6 ${isEditing ? 'border-[var(--accent)]' : 'border-[var(--paper3)]'}`}>
+                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4 flex items-center gap-2">
+                    {section.title || 'Upload Image'}
+                    {isEditing && <span className="text-xs font-normal text-[var(--accent)] bg-blue-50 px-2 py-1 rounded">Editing</span>}
+                  </h3>
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      <div className="border-2 border-dashed border-[var(--paper3)] rounded-lg p-6 text-center hover:border-[var(--accent)] transition">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setEditSectionData(prev => ({
+                                  ...prev,
+                                  [section.id]: { type: 'imageUpload', data: reader.result as string, fileName: file.name }
+                                }));
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                          id={`edit-image-${section.id}`}
+                        />
+                        <label htmlFor={`edit-image-${section.id}`} className="cursor-pointer">
+                          <svg className="w-10 h-10 mx-auto mb-2 text-[var(--ink3)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <p className="text-sm font-medium text-[var(--ink)]">Click to replace image</p>
+                        </label>
+                      </div>
+                      {(editSectionData[section.id]?.data || savedData?.data) && (
+                        <img
+                          src={editSectionData[section.id]?.data || savedData?.data}
+                          alt="Uploaded"
+                          className="max-w-full h-auto rounded-lg border border-[var(--paper3)]"
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    currentData?.data ? (
+                      <div className="space-y-3">
+                        <img src={currentData.data} alt={currentData.fileName || 'Uploaded image'} className="max-w-full h-auto rounded-lg border border-[var(--paper3)] shadow-sm" />
+                        {currentData.fileName && <p className="text-sm text-[var(--ink3)]"><strong>File:</strong> {currentData.fileName}</p>}
+                      </div>
+                    ) : <p className="text-[var(--ink3)]">No image uploaded</p>
+                  )}
+                </div>
+              );
+            }
+
+            // File upload section
+            if (section.type === 'fileUpload') {
+              return (
+                <div key={section.id} className={`bg-white rounded-xl border-2 p-6 ${isEditing ? 'border-[var(--accent)]' : 'border-[var(--paper3)]'}`}>
+                  <h3 className="text-xl font-bold text-[var(--ink)] mb-4 flex items-center gap-2">
+                    {section.title || 'Upload File'}
+                    {isEditing && <span className="text-xs font-normal text-[var(--accent)] bg-blue-50 px-2 py-1 rounded">Editing</span>}
+                  </h3>
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      <div className="border-2 border-dashed border-[var(--paper3)] rounded-lg p-6 text-center hover:border-[var(--accent)] transition">
+                        <input
+                          type="file"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setEditSectionData(prev => ({
+                                  ...prev,
+                                  [section.id]: { type: 'fileUpload', data: reader.result as string, fileName: file.name, fileType: file.type, fileSize: file.size }
+                                }));
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                          id={`edit-file-${section.id}`}
+                        />
+                        <label htmlFor={`edit-file-${section.id}`} className="cursor-pointer">
+                          <svg className="w-10 h-10 mx-auto mb-2 text-[var(--ink3)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          <p className="text-sm font-medium text-[var(--ink)]">Click to replace file</p>
+                        </label>
+                      </div>
+                      {(editSectionData[section.id] || savedData) && (
+                        <p className="text-sm text-[var(--ink3)]">Current: {(editSectionData[section.id] || savedData)?.fileName}</p>
+                      )}
+                    </div>
+                  ) : (
+                    currentData?.data ? (
+                      <div className="p-4 bg-[var(--paper)] rounded-lg border border-[var(--paper3)]">
+                        <div className="flex items-center gap-3">
+                          <svg className="w-10 h-10 text-[var(--accent)]" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd"/>
+                          </svg>
+                          <div className="flex-1">
+                            <p className="font-medium text-[var(--ink)]">{currentData.fileName || 'Uploaded file'}</p>
+                            {currentData.fileSize && <p className="text-sm text-[var(--ink3)]">Size: {(currentData.fileSize / 1024).toFixed(2)} KB</p>}
+                          </div>
+                          <a href={currentData.data} download={currentData.fileName} className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent2)] transition text-sm">Download</a>
+                        </div>
+                      </div>
+                    ) : <p className="text-[var(--ink3)]">No file uploaded</p>
+                  )}
+                </div>
+              );
+            }
+
+            // Divider
+            if (section.type === 'divider') {
+              return <hr key={section.id} className="my-2 border-t-2 border-[var(--paper3)]" />;
+            }
+
             return null;
           })}
         </div>
