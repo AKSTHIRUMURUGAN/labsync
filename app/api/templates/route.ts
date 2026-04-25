@@ -21,20 +21,34 @@ export async function GET(request: NextRequest) {
     const active = searchParams.get('active');
 
     const db = await getDatabase();
-    const query: any = {};
+    const andConditions: any[] = [];
 
     if (departmentId) {
-      query.departmentId = new ObjectId(departmentId);
+      andConditions.push({ departmentId: new ObjectId(departmentId) });
     }
 
     if (active !== null) {
-      query.active = active === 'true';
+      andConditions.push({ active: active === 'true' });
     }
 
     // Students should only see active templates
     if (authResult.role === 'student') {
-      query.active = true;
+      andConditions.push({ active: true });
     }
+
+    // Visibility filter: non-principal users can only see own department templates
+    // or templates explicitly shared to their department.
+    if (authResult.role !== 'principal' && authResult.departmentId) {
+      const currentDepartmentId = new ObjectId(authResult.departmentId);
+      andConditions.push({
+        $or: [
+          { departmentId: currentDepartmentId },
+          { visibleToDepartmentIds: currentDepartmentId },
+        ],
+      });
+    }
+
+    const query = andConditions.length > 0 ? { $and: andConditions } : {};
 
     const skip = (page - 1) * limit;
     const templates = await db
@@ -63,7 +77,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { title, description, objectives, steps, observationTables, requiredFields, calculationRules, departmentId, sections } = body;
+    const {
+      title,
+      description,
+      objectives,
+      steps,
+      observationTables,
+      requiredFields,
+      calculationRules,
+      departmentId,
+      sections,
+      visibleToDepartmentIds,
+    } = body;
 
     const db = await getDatabase();
     let resolvedDepartmentId = departmentId;
@@ -137,6 +162,17 @@ export async function POST(request: NextRequest) {
       return validationError(errors);
     }
 
+    const ownerDepartmentObjectId = new ObjectId(resolvedDepartmentId);
+    const normalizedVisibleDepartmentIds = Array.isArray(visibleToDepartmentIds)
+      ? Array.from(
+          new Set(
+            visibleToDepartmentIds
+              .filter((id: any) => typeof id === 'string' && ObjectId.isValid(id))
+              .filter((id: string) => id !== resolvedDepartmentId)
+          )
+        ).map((id: string) => new ObjectId(id))
+      : [];
+
     const template: any = {
       version: '1.0.0',
       title,
@@ -148,7 +184,8 @@ export async function POST(request: NextRequest) {
       calculationRules: calculationRules || [],
       sections: sections || [], // Save sections
       createdBy: new ObjectId(authResult.userId),
-      departmentId: new ObjectId(resolvedDepartmentId),
+      departmentId: ownerDepartmentObjectId,
+      visibleToDepartmentIds: normalizedVisibleDepartmentIds,
       active: true,
       createdAt: new Date(),
       updatedAt: new Date(),

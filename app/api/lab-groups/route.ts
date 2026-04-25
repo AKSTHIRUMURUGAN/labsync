@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
     const db = await getDatabase();
     const query: any = {};
 
+    if (authResult.role !== 'principal' && authResult.departmentId) {
+      query.departmentId = new ObjectId(authResult.departmentId);
+    }
+
     if (departmentId) {
       query.departmentId = new ObjectId(departmentId);
     }
@@ -33,10 +37,40 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
     const labGroups = await db
       .collection<LabGroup>('labGroups')
-      .find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
+      .aggregate([
+        { $match: query },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'facultyId',
+            foreignField: '_id',
+            as: 'faculty',
+          },
+        },
+        {
+          $addFields: {
+            faculty: { $arrayElemAt: ['$faculty', 0] },
+            facultyName: {
+              $cond: [
+                { $ifNull: [{ $arrayElemAt: ['$faculty', 0] }, false] },
+                {
+                  $concat: [
+                    { $ifNull: [{ $arrayElemAt: ['$faculty.firstName', 0] }, ''] },
+                    ' ',
+                    { $ifNull: [{ $arrayElemAt: ['$faculty.lastName', 0] }, ''] },
+                  ],
+                },
+                null,
+              ],
+            },
+            studentCount: { $size: { $ifNull: ['$students', []] } },
+          },
+        },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        { $project: { faculty: 0 } },
+      ])
       .toArray();
 
     const total = await db.collection<LabGroup>('labGroups').countDocuments(query);
@@ -49,7 +83,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireRole(request, ['lab_faculty', 'hod', 'principal']);
+  const authResult = await requireRole(request, ['lab_faculty', 'faculty_coordinator', 'hod', 'principal']);
   
   if (authResult instanceof Response) {
     return authResult;
@@ -57,7 +91,22 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, className, semester, academicYear, departmentId, students, experimentTemplates } = body;
+    const { name, className, semester, academicYear, departmentId, facultyId, students, experimentTemplates } = body;
+
+    let resolvedDepartmentId = departmentId;
+    if (!resolvedDepartmentId && authResult.departmentId) {
+      resolvedDepartmentId = authResult.departmentId;
+    }
+
+    if (authResult.role === 'faculty_coordinator') {
+      if (!authResult.departmentId) {
+        return validationError({ departmentId: 'Coordinator account has no department assigned' });
+      }
+      if (resolvedDepartmentId && resolvedDepartmentId !== authResult.departmentId) {
+        return validationError({ departmentId: 'Coordinator can create groups only for their own department' });
+      }
+      resolvedDepartmentId = authResult.departmentId;
+    }
 
     // Validation
     const errors: { [key: string]: string } = {};
@@ -65,7 +114,8 @@ export async function POST(request: NextRequest) {
     if (!className) errors.className = 'Class name is required';
     if (!semester) errors.semester = 'Semester is required';
     if (!academicYear) errors.academicYear = 'Academic year is required';
-    if (!departmentId) errors.departmentId = 'Department ID is required';
+    if (!resolvedDepartmentId) errors.departmentId = 'Department ID is required';
+    if (!facultyId) errors.facultyId = 'Faculty is required';
 
     if (Object.keys(errors).length > 0) {
       return validationError(errors);
@@ -77,7 +127,8 @@ export async function POST(request: NextRequest) {
       className,
       semester,
       academicYear,
-      departmentId: new ObjectId(departmentId),
+      departmentId: new ObjectId(resolvedDepartmentId),
+      facultyId: new ObjectId(facultyId),
       students: students ? students.map((id: string) => new ObjectId(id)) : [],
       experimentTemplates: experimentTemplates ? experimentTemplates.map((id: string) => new ObjectId(id)) : [],
       createdBy: new ObjectId(authResult.userId),

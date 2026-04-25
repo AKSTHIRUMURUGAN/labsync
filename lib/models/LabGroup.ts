@@ -7,6 +7,7 @@ export interface LabGroup {
   semester: string;
   academicYear: string;
   departmentId: ObjectId;
+  facultyId?: ObjectId;
   students: ObjectId[];
   experimentTemplates: ObjectId[];
   createdBy: ObjectId;

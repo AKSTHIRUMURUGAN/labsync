@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:indexes": "node scripts/create-indexes.js",
     "db:seed": "node scripts/seed.js",
-    "db:seed-lab": "node scripts/seed-lab-data.js"
+    "db:seed-lab": "node scripts/seed-lab-data.js",
+    "db:seed-departments": "node scripts/seed-departments.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
@@ -41,7 +42,8 @@
     "react-dropzone": "^14.2.3",
     "react-hot-toast": "^2.6.0",
     "react-pdf": "^10.4.1",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

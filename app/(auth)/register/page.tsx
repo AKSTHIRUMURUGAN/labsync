@@ -1,10 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+
+interface DepartmentOption {
+  _id: string;
+  name: string;
+  code: string;
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,6 +29,26 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState('');
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [deptLoading, setDeptLoading] = useState(true);
+
+  // Fetch departments on mount so the dropdown is ready before the user picks a role.
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const res = await fetch('/api/departments');
+        const data = await res.json();
+        if (data.success) {
+          setDepartments(data.data);
+        }
+      } catch {
+        // Non-fatal — user can still type an ID manually if fetch fails.
+      } finally {
+        setDeptLoading(false);
+      }
+    };
+    fetchDepartments();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -48,6 +74,9 @@ export default function RegisterPage() {
     }
     if (formData.password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters';
+    }
+    if (formData.role !== 'principal' && !formData.departmentId.trim()) {
+      newErrors.departmentId = 'Department is required';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -268,6 +297,38 @@ export default function RegisterPage() {
                 <option value="principal">Principal</option>
               </select>
             </div>
+
+            {/* Department */}
+            {formData.role !== 'principal' && (
+              <div>
+                <label htmlFor="departmentId" className="block text-sm font-medium text-gray-700 mb-1">
+                  Department *
+                </label>
+                <select
+                  id="departmentId"
+                  name="departmentId"
+                  value={formData.departmentId}
+                  onChange={handleChange}
+                  required
+                  disabled={deptLoading}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white ${
+                    errors.departmentId ? 'border-red-500' : 'border-gray-300'
+                  } ${deptLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                >
+                  <option value="">
+                    {deptLoading ? 'Loading departments…' : '— Select your department —'}
+                  </option>
+                  {departments.map((dept) => (
+                    <option key={dept._id} value={dept._id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.departmentId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.departmentId}</p>
+                )}
+              </div>
+            )}
 
             {/* Conditional Fields */}
             {formData.role === 'student' && (

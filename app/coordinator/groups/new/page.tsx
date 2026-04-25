@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-interface Template {
+interface Faculty {
   _id: string;
-  title: string;
-  description: string;
+  firstName: string;
+  lastName: string;
+  email: string;
 }
 
 interface Student {
@@ -21,24 +22,45 @@ interface Student {
 export default function NewLabGroupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
   const [departmentId, setDepartmentId] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     className: '',
     semester: '',
+    facultyId: '',
     academicYear: new Date().getFullYear() + '-' + (new Date().getFullYear() + 1),
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     fetchUserData();
-    fetchTemplates();
+    fetchFaculty();
     fetchStudents();
   }, []);
+  const fetchFaculty = async () => {
+    try {
+      const response = await fetch('/api/coordinator/faculty');
+      const data = await response.json();
+      if (data.success && Array.isArray(data.data)) {
+        const normalized = data.data.map((member: any) => ({
+          _id: member._id?.toString() || '',
+          firstName: member.firstName || '',
+          lastName: member.lastName || '',
+          email: member.email || '',
+        }));
+        setFaculty(normalized);
+      } else {
+        setFaculty([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch faculty', error);
+      setFaculty([]);
+    }
+  };
+
 
   const fetchUserData = async () => {
     try {
@@ -52,25 +74,25 @@ export default function NewLabGroupPage() {
     }
   };
 
-  const fetchTemplates = async () => {
-    try {
-      const response = await fetch('/api/templates');
-      const data = await response.json();
-      if (data.success) {
-        setTemplates(data.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch templates', error);
-    }
-  };
-
   const fetchStudents = async () => {
     try {
-      // In a real app, this would fetch students from the department
-      // For now, we'll just show an empty list
-      setStudents([]);
+      const response = await fetch('/api/coordinator/students');
+      const data = await response.json();
+      if (data.success && Array.isArray(data.data)) {
+        const normalized = data.data.map((student: any) => ({
+          _id: student._id?.toString() || '',
+          firstName: student.firstName || '',
+          lastName: student.lastName || '',
+          email: student.email || '',
+          enrollmentNumber: student.enrollmentNumber || '',
+        }));
+        setStudents(normalized);
+      } else {
+        setStudents([]);
+      }
     } catch (error) {
       console.error('Failed to fetch students', error);
+      setStudents([]);
     }
   };
 
@@ -87,7 +109,6 @@ export default function NewLabGroupPage() {
           ...formData,
           departmentId,
           students: selectedStudents,
-          experimentTemplates: selectedTemplates,
         }),
       });
 
@@ -115,14 +136,6 @@ export default function NewLabGroupPage() {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
-  };
-
-  const toggleTemplate = (templateId: string) => {
-    setSelectedTemplates(prev =>
-      prev.includes(templateId)
-        ? prev.filter(id => id !== templateId)
-        : [...prev, templateId]
-    );
   };
 
   const toggleStudent = (studentId: string) => {
@@ -269,39 +282,36 @@ export default function NewLabGroupPage() {
                   )}
                 </div>
               </div>
+
+              <div>
+                <label htmlFor="facultyId" className="block text-sm font-medium text-[var(--ink)] mb-2">
+                  Faculty *
+                </label>
+                <select
+                  id="facultyId"
+                  name="facultyId"
+                  value={formData.facultyId}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)] ${
+                    errors.facultyId ? 'border-red-500' : 'border-[var(--paper3)]'
+                  }`}
+                  required
+                >
+                  <option value="">Select faculty</option>
+                  {faculty.map(member => (
+                    <option key={member._id} value={member._id}>
+                      {member.firstName} {member.lastName} ({member.email})
+                    </option>
+                  ))}
+                </select>
+                {errors.facultyId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.facultyId}</p>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Experiment Templates */}
-          <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
-            <h2 className="text-xl font-bold text-[var(--ink)] heading mb-4">Experiment Templates</h2>
-            <p className="text-sm text-[var(--ink3)] mb-4">Select the experiments this group will perform</p>
-            
-            {templates.length === 0 ? (
-              <p className="text-[var(--ink3)] text-center py-4">No templates available. Create templates first.</p>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {templates.map(template => (
-                  <label
-                    key={template._id}
-                    className="flex items-start gap-3 p-3 border border-[var(--paper3)] rounded-lg hover:bg-[var(--paper)] cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedTemplates.includes(template._id)}
-                      onChange={() => toggleTemplate(template._id)}
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium text-[var(--ink)]">{template.title}</div>
-                      <div className="text-sm text-[var(--ink3)]">{template.description}</div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Students */}
           <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
             <h2 className="text-xl font-bold text-[var(--ink)] heading mb-4">Students</h2>

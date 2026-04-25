@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { verifyToken } from './lib/auth';
 
 // Define public routes that don't require authentication
-const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/verify'];
+const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/verify', '/api/departments'];
 const authPages = ['/login', '/register'];
 
 // Define role-based route access

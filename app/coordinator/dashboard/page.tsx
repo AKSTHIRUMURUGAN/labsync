@@ -132,7 +132,7 @@ export default function CoordinatorDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <Link
             href="/coordinator/groups/new"
             className="bg-[var(--accent)] text-white rounded-xl p-6 hover:bg-[var(--accent2)] transition"
@@ -141,18 +141,11 @@ export default function CoordinatorDashboard() {
             <p className="text-sm text-white/80">Set up a new lab group with students</p>
           </Link>
           <Link
-            href="/coordinator/faculty/assign"
+            href="/coordinator/groups"
             className="bg-white border border-[var(--paper3)] rounded-xl p-6 hover:border-[var(--accent)] transition"
           >
-            <div className="text-lg font-bold mb-2 text-[var(--ink)] heading">Assign Faculty</div>
-            <p className="text-sm text-[var(--ink3)]">Assign faculty to lab groups</p>
-          </Link>
-          <Link
-            href="/coordinator/reports"
-            className="bg-white border border-[var(--paper3)] rounded-xl p-6 hover:border-[var(--accent)] transition"
-          >
-            <div className="text-lg font-bold mb-2 text-[var(--ink)] heading">View Reports</div>
-            <p className="text-sm text-[var(--ink3)]">Generate department reports</p>
+            <div className="text-lg font-bold mb-2 text-[var(--ink)] heading">Manage Lab Groups</div>
+            <p className="text-sm text-[var(--ink3)]">Manage faculty, students, and assignments in one place</p>
           </Link>
         </div>
 

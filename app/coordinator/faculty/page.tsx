@@ -9,9 +9,13 @@ interface Faculty {
   firstName: string;
   lastName: string;
   email: string;
-  employeeId: string;
+  employeeId?: string;
   assignedGroups: number;
+  assignedStudents: number;
+  totalSubmissions: number;
   pendingReviews: number;
+  acceptedSubmissions: number;
+  rejectedSubmissions: number;
 }
 
 export default function CoordinatorFacultyPage() {
@@ -25,11 +29,29 @@ export default function CoordinatorFacultyPage() {
 
   const fetchFaculty = async () => {
     try {
-      // This would fetch faculty members from the department
-      // For now, using placeholder data
-      setFaculty([]);
+      const response = await fetch('/api/coordinator/faculty');
+      const data = await response.json();
+      if (data.success && Array.isArray(data.data)) {
+        const normalized = data.data.map((member: any) => ({
+          _id: member._id?.toString() || '',
+          firstName: member.firstName || '',
+          lastName: member.lastName || '',
+          email: member.email || '',
+          employeeId: member.employeeId || '',
+          assignedGroups: Number(member.assignedGroups || 0),
+          assignedStudents: Number(member.assignedStudents || 0),
+          totalSubmissions: Number(member.totalSubmissions || 0),
+          pendingReviews: Number(member.pendingReviews || 0),
+          acceptedSubmissions: Number(member.acceptedSubmissions || 0),
+          rejectedSubmissions: Number(member.rejectedSubmissions || 0),
+        }));
+        setFaculty(normalized);
+      } else {
+        setFaculty([]);
+      }
     } catch (error) {
       console.error('Failed to fetch faculty');
+      setFaculty([]);
     } finally {
       setLoading(false);
     }
@@ -89,7 +111,10 @@ export default function CoordinatorFacultyPage() {
                   <th className="px-6 py-4 text-left text-sm font-bold text-[var(--ink)]">Employee ID</th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-[var(--ink)]">Email</th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-[var(--ink)]">Assigned Groups</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold text-[var(--ink)]">Pending Reviews</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-[var(--ink)]">Students</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-[var(--ink)]">Pending</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-[var(--ink)]">Accepted</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-[var(--ink)]">Rejected</th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-[var(--ink)]">Actions</th>
                 </tr>
               </thead>
@@ -108,8 +133,17 @@ export default function CoordinatorFacultyPage() {
                     <td className="px-6 py-4 text-sm text-[var(--ink3)]">
                       {member.assignedGroups}
                     </td>
+                    <td className="px-6 py-4 text-sm text-[var(--ink3)]">
+                      {member.assignedStudents}
+                    </td>
                     <td className="px-6 py-4 text-sm text-[var(--amber)]">
                       {member.pendingReviews}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--green)]">
+                      {member.acceptedSubmissions}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-red-600">
+                      {member.rejectedSubmissions}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <Link

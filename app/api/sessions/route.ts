@@ -98,6 +98,17 @@ export async function POST(request: NextRequest) {
 
     const db = await getDatabase();
 
+    if (authResult.role === 'lab_faculty') {
+      const labGroup = await db.collection('labGroups').findOne({
+        _id: new ObjectId(labGroupId),
+        facultyId: new ObjectId(authResult.userId),
+      });
+
+      if (!labGroup) {
+        return validationError({ labGroupId: 'No active lab group assignment found for this faculty' });
+      }
+    }
+
     // Check for existing active session
     const existingSession = await db
       .collection<LabSession>('labSessions')

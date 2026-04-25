@@ -19,6 +19,12 @@ export async function POST(request: NextRequest) {
     if (!lastName) errors.lastName = 'Last name is required';
     if (!role) errors.role = 'Role is required';
     if (!institutionId) errors.institutionId = 'Institution ID is required';
+    if (role && role !== 'principal' && !departmentId) {
+      errors.departmentId = 'Department is required';
+    }
+    if (departmentId && !ObjectId.isValid(departmentId)) {
+      errors.departmentId = 'Invalid department ID';
+    }
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,6 +37,32 @@ export async function POST(request: NextRequest) {
     }
 
     const db = await getDatabase();
+
+    // Governance guard: student/lab faculty onboarding is allowed only after
+    // department has at least one active coordinator and one active HOD.
+    if (role !== 'principal' && departmentId && ['student', 'lab_faculty'].includes(role)) {
+      const departmentObjectId = new ObjectId(departmentId);
+
+      const [coordinatorCount, hodCount] = await Promise.all([
+        db.collection<User>('users').countDocuments({
+          departmentId: departmentObjectId,
+          role: 'faculty_coordinator',
+          active: true,
+        }),
+        db.collection<User>('users').countDocuments({
+          departmentId: departmentObjectId,
+          role: 'hod',
+          active: true,
+        }),
+      ]);
+
+      if (coordinatorCount === 0 || hodCount === 0) {
+        return validationError({
+          departmentId:
+            'Department governance is incomplete. Add at least one coordinator and one HOD before onboarding students or lab faculty.',
+        });
+      }
+    }
 
     // Check if user already exists
     const existingUser = await db.collection<User>('users').findOne({ email: email.toLowerCase() });

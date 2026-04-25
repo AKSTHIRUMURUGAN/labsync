@@ -45,6 +45,7 @@ export interface ExperimentTemplate {
   calculationRules: CalculationRule[];
   createdBy: ObjectId;
   departmentId: ObjectId;
+  visibleToDepartmentIds?: ObjectId[];
   previousVersionId?: ObjectId;
   active: boolean;
   createdAt: Date;

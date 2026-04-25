@@ -18,9 +18,19 @@ export async function GET(
   try {
     const { id } = await params;
     const db = await getDatabase();
+
+    const visibilityFilter: any = { _id: new ObjectId(id) };
+    if (authResult.role !== 'principal' && authResult.departmentId) {
+      const currentDepartmentId = new ObjectId(authResult.departmentId);
+      visibilityFilter.$or = [
+        { departmentId: currentDepartmentId },
+        { visibleToDepartmentIds: currentDepartmentId },
+      ];
+    }
+
     const template = await db
       .collection<ExperimentTemplate>('experimentTemplates')
-      .findOne({ _id: new ObjectId(id) });
+      .findOne(visibilityFilter);
 
     if (!template) {
       return notFoundError('Template not found');
@@ -48,6 +58,14 @@ export async function PUT(
     const body = await request.json();
     const db = await getDatabase();
 
+    const existingTemplate = await db
+      .collection<ExperimentTemplate>('experimentTemplates')
+      .findOne({ _id: new ObjectId(id) });
+
+    if (!existingTemplate) {
+      return notFoundError('Template not found');
+    }
+
     // Update the template directly (simpler approach)
     const updateData: any = {
       updatedAt: new Date(),
@@ -58,6 +76,17 @@ export async function PUT(
     if (body.objectives) updateData.objectives = body.objectives;
     if (body.steps) updateData.steps = body.steps;
     if (body.sections) updateData.sections = body.sections; // Save sections
+    if (Array.isArray(body.visibleToDepartmentIds)) {
+      const ownerDepartmentId = existingTemplate.departmentId?.toString();
+      const sanitizedDepartmentIds = Array.from(
+        new Set(
+          body.visibleToDepartmentIds
+            .filter((deptId: any) => typeof deptId === 'string' && ObjectId.isValid(deptId))
+            .filter((deptId: string) => deptId !== ownerDepartmentId)
+        )
+      ) as string[];
+      updateData.visibleToDepartmentIds = sanitizedDepartmentIds.map((deptId) => new ObjectId(deptId));
+    }
 
     const result = await db
       .collection<ExperimentTemplate>('experimentTemplates')

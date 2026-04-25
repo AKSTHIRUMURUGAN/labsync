@@ -411,6 +411,8 @@ export default function CreateTemplatePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [departmentId, setDepartmentId] = useState<string>('');
+  const [availableDepartments, setAvailableDepartments] = useState<Array<{ id?: string; _id?: string; name: string; isCurrentUserDepartment?: boolean }>>([]);
+  const [visibleToDepartmentIds, setVisibleToDepartmentIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'import' | 'basic' | 'content' | 'preview'>('import');
   
   // Form fields
@@ -425,6 +427,7 @@ export default function CreateTemplatePage() {
 
   useEffect(() => {
     fetchUserData();
+    fetchDepartments();
     initializeDefaultSections();
   }, []);
 
@@ -534,6 +537,35 @@ export default function CreateTemplatePage() {
     } catch (error) {
       console.error('Failed to fetch user data', error);
     }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch('/api/departments');
+      const data = await response.json();
+      if (data.success && Array.isArray(data.data)) {
+        const normalizedDepartments = data.data
+          .map((dept: any) => ({
+            id: dept.id || dept._id?.toString(),
+            _id: dept._id?.toString(),
+            name: dept.name || 'Unnamed Department',
+            isCurrentUserDepartment: dept.isCurrentUserDepartment,
+          }))
+          .filter((dept: any) => Boolean(dept.id || dept._id || dept.name));
+
+        setAvailableDepartments(normalizedDepartments);
+      }
+    } catch (error) {
+      console.error('Failed to fetch departments', error);
+    }
+  };
+
+  const toggleVisibleDepartment = (selectedDepartmentId: string) => {
+    setVisibleToDepartmentIds((prev) =>
+      prev.includes(selectedDepartmentId)
+        ? prev.filter((id) => id !== selectedDepartmentId)
+        : [...prev, selectedDepartmentId]
+    );
   };
 
   const handleAIGenerate = (generatedSections: TemplateSection[], generatedObjectives: string[], generatedProcedures: string[]) => {
@@ -790,6 +822,7 @@ export default function CreateTemplatePage() {
           requiredFields: ['aim', 'apparatus', 'procedure', 'observations', 'output', 'conclusion'],
           calculationRules: [],
           departmentId: resolvedDepartmentId || undefined,
+          visibleToDepartmentIds,
         }),
       });
 
@@ -1034,6 +1067,47 @@ export default function CreateTemplatePage() {
                     placeholder="Brief overview of the experiment..."
                     className="w-full px-4 py-2 border border-[var(--paper3)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] outline-none resize-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--ink)] mb-2">
+                    Visible To Departments
+                  </label>
+                  <p className="text-xs text-[var(--ink3)] mb-3">
+                    Your department always has access. Select additional departments that can view and use this template.
+                  </p>
+                  <div className="max-h-56 overflow-auto rounded-lg border border-[var(--paper3)] p-3 space-y-2">
+                    {availableDepartments.length === 0 ? (
+                      <p className="text-sm text-[var(--ink3)]">No department list available yet.</p>
+                    ) : (
+                      availableDepartments.map((dept, index) => {
+                        const deptId = dept.id || dept._id || '';
+                        const deptKey = dept.id || dept._id || `${dept.name}-${index}`;
+                        const isOwnerDepartment = !!departmentId && deptId === departmentId;
+                        const checked = isOwnerDepartment || (deptId ? visibleToDepartmentIds.includes(deptId) : false);
+
+                        return (
+                          <label key={deptKey} className={`flex items-center gap-3 text-sm ${isOwnerDepartment ? 'opacity-70' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={isOwnerDepartment || !deptId}
+                              onChange={() => {
+                                if (deptId) {
+                                  toggleVisibleDepartment(deptId);
+                                }
+                              }}
+                              className="h-4 w-4"
+                            />
+                            <span className="text-[var(--ink)]">{dept.name}</span>
+                            {isOwnerDepartment && (
+                              <span className="text-xs px-2 py-0.5 rounded bg-[var(--paper)] text-[var(--ink3)]">Owner</span>
+                            )}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
