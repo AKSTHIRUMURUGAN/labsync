@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireRole } from '@/lib/middleware/auth-middleware';
 import { getDatabase } from '@/lib/mongodb';
 import { Submission } from '@/lib/models/Submission';
+import { LabSession } from '@/lib/models/LabSession';
 import { Notification } from '@/lib/models/Notification';
 import { successResponse, notFoundError, validationError, serverError } from '@/lib/api-response';
 import { ObjectId } from 'mongodb';
@@ -32,6 +33,30 @@ export async function POST(
 
     if (!submission) {
       return notFoundError('Submission not found');
+    }
+
+    const session = await db.collection<LabSession>('labSessions').findOne({ _id: submission.labSessionId });
+    const labGroup = session
+      ? await db.collection('labGroups').findOne({ _id: session.labGroupId })
+      : null;
+
+    if (authResult.role === 'lab_faculty') {
+      if (!authResult.departmentId || !labGroup) {
+        return notFoundError('Submission not found');
+      }
+
+      const sameDepartment = labGroup.departmentId?.toString() === authResult.departmentId;
+      const assignedFaculty = labGroup.facultyId?.toString() === authResult.userId;
+
+      if (!sameDepartment || !assignedFaculty) {
+        return notFoundError('Submission not found');
+      }
+    }
+
+    if (authResult.role === 'faculty_coordinator' || authResult.role === 'hod') {
+      if (!authResult.departmentId || !labGroup || labGroup.departmentId?.toString() !== authResult.departmentId) {
+        return notFoundError('Submission not found');
+      }
     }
 
     // Set status back to in_progress so student can edit and resubmit

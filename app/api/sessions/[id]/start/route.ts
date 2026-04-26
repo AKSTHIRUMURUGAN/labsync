@@ -28,6 +28,29 @@ export async function POST(
       return notFoundError('Session not found');
     }
 
+    const labGroup = await db.collection('labGroups').findOne({ _id: session.labGroupId });
+    if (!labGroup) {
+      return notFoundError('Session not found');
+    }
+
+    if (authResult.role === 'lab_faculty') {
+      const assignedFaculty = (labGroup as any).facultyId?.toString() === authResult.userId;
+      const sameDepartment = authResult.departmentId
+        ? (labGroup as any).departmentId?.toString() === authResult.departmentId
+        : false;
+
+      if (!assignedFaculty || !sameDepartment) {
+        return notFoundError('Session not found');
+      }
+    }
+
+    if (authResult.role === 'hod' && authResult.departmentId) {
+      const sameDepartment = (labGroup as any).departmentId?.toString() === authResult.departmentId;
+      if (!sameDepartment) {
+        return notFoundError('Session not found');
+      }
+    }
+
     // Update session status
     await db
       .collection<LabSession>('labSessions')
@@ -43,13 +66,9 @@ export async function POST(
       );
 
     // Get lab group students
-    const labGroup = await db
-      .collection('labGroups')
-      .findOne({ _id: session.labGroupId });
-
-    if (labGroup && labGroup.students) {
+    if ((labGroup as any).students) {
       // Create notifications for all students
-      const notifications = labGroup.students.map((studentId: ObjectId) => ({
+      const notifications = (labGroup as any).students.map((studentId: ObjectId) => ({
         userId: studentId,
         type: 'session_started' as const,
         title: 'Lab Session Started',

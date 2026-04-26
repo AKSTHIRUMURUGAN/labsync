@@ -29,18 +29,72 @@ export async function GET(request: NextRequest) {
       const enrolledGroups = await db
         .collection('labGroups')
         .find(
-          { students: new ObjectId(authResult.userId) },
+          { students: new ObjectId(authResult.userId), active: { $ne: false } },
           { projection: { _id: 1 } }
         )
         .toArray();
 
       const enrolledGroupIds = enrolledGroups.map((group: any) => group._id);
+      if (enrolledGroupIds.length === 0) {
+        return successResponse([], { page, limit, total: 0 });
+      }
+      query.labGroupId = { $in: enrolledGroupIds };
+    }
 
-      // Apply membership filter only when enrollment data exists.
-      // If no enrollment mapping is present yet, keep backward-compatible behavior
-      // so active sessions are still visible on the student dashboard.
-      if (enrolledGroupIds.length > 0) {
-        query.labGroupId = { $in: enrolledGroupIds };
+    if (authResult.role === 'lab_faculty') {
+      const facultyGroupQuery: any = {
+        facultyId: new ObjectId(authResult.userId),
+        active: { $ne: false },
+      };
+
+      if (authResult.departmentId) {
+        facultyGroupQuery.departmentId = new ObjectId(authResult.departmentId);
+      }
+
+      const assignedGroups = await db
+        .collection('labGroups')
+        .find(facultyGroupQuery, { projection: { _id: 1 } })
+        .toArray();
+
+      const assignedGroupIds = assignedGroups.map((group: any) => group._id);
+      if (assignedGroupIds.length === 0) {
+        return successResponse([], { page, limit, total: 0 });
+      }
+
+      if (query.labGroupId?.$in) {
+        const intersection = assignedGroupIds.filter((groupId: ObjectId) =>
+          query.labGroupId.$in.some((candidate: ObjectId) => candidate.toString() === groupId.toString())
+        );
+        query.labGroupId = { $in: intersection };
+      } else {
+        query.labGroupId = { $in: assignedGroupIds };
+      }
+    }
+
+    if (authResult.role === 'hod' && authResult.departmentId) {
+      const departmentGroups = await db
+        .collection('labGroups')
+        .find(
+          {
+            departmentId: new ObjectId(authResult.departmentId),
+            active: { $ne: false },
+          },
+          { projection: { _id: 1 } }
+        )
+        .toArray();
+
+      const departmentGroupIds = departmentGroups.map((group: any) => group._id);
+      if (departmentGroupIds.length === 0) {
+        return successResponse([], { page, limit, total: 0 });
+      }
+
+      if (query.labGroupId?.$in) {
+        const intersection = departmentGroupIds.filter((groupId: ObjectId) =>
+          query.labGroupId.$in.some((candidate: ObjectId) => candidate.toString() === groupId.toString())
+        );
+        query.labGroupId = { $in: intersection };
+      } else {
+        query.labGroupId = { $in: departmentGroupIds };
       }
     }
 
@@ -49,16 +103,51 @@ export async function GET(request: NextRequest) {
     }
 
     if (labGroupId) {
-      query.labGroupId = new ObjectId(labGroupId);
+      const requestedGroupId = new ObjectId(labGroupId);
+      if (query.labGroupId?.$in) {
+        const allowed = query.labGroupId.$in.some((groupId: ObjectId) => groupId.toString() === requestedGroupId.toString());
+        if (!allowed) {
+          return successResponse([], { page, limit, total: 0 });
+        }
+      }
+      query.labGroupId = requestedGroupId;
     }
 
     const skip = (page - 1) * limit;
     const sessions = await db
       .collection<LabSession>('labSessions')
-      .find(query)
-      .sort({ startTime: -1 })
-      .skip(skip)
-      .limit(limit)
+      .aggregate([
+        { $match: query },
+        { $sort: { startTime: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: 'labGroups',
+            localField: 'labGroupId',
+            foreignField: '_id',
+            as: 'labGroup',
+          },
+        },
+        {
+          $lookup: {
+            from: 'experimentTemplates',
+            localField: 'experimentTemplateId',
+            foreignField: '_id',
+            as: 'template',
+          },
+        },
+        {
+          $addFields: {
+            groupName: { $arrayElemAt: ['$labGroup.name', 0] },
+            className: { $arrayElemAt: ['$labGroup.className', 0] },
+            semester: { $arrayElemAt: ['$labGroup.semester', 0] },
+            academicYear: { $arrayElemAt: ['$labGroup.academicYear', 0] },
+            templateTitle: { $arrayElemAt: ['$template.title', 0] },
+          },
+        },
+        { $project: { labGroup: 0, template: 0 } },
+      ])
       .toArray();
 
     const total = await db.collection<LabSession>('labSessions').countDocuments(query);

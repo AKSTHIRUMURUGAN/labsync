@@ -12,6 +12,8 @@ export interface User {
   institutionId: ObjectId;
   departmentId?: ObjectId;
   enrollmentNumber?: string;
+  currentSemester?: number;
+  currentYear?: number;
   employeeId?: string;
   googleId?: string;
   profilePicture?: string;
@@ -30,5 +32,7 @@ export interface CreateUserInput {
   institutionId: string;
   departmentId?: string;
   enrollmentNumber?: string;
+  currentSemester?: number;
+  currentYear?: number;
   employeeId?: string;
 }

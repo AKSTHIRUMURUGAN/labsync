@@ -18,14 +18,20 @@ export default function CoordinatorGroupsPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<LabGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [semesterFilter, setSemesterFilter] = useState('');
+  const [academicYearFilter, setAcademicYearFilter] = useState('');
 
   useEffect(() => {
     fetchGroups();
-  }, []);
+  }, [semesterFilter, academicYearFilter]);
 
   const fetchGroups = async () => {
     try {
-      const response = await fetch('/api/lab-groups');
+      const query = new URLSearchParams();
+      if (semesterFilter) query.set('semester', semesterFilter);
+      if (academicYearFilter) query.set('academicYear', academicYearFilter);
+
+      const response = await fetch(`/api/lab-groups${query.toString() ? `?${query.toString()}` : ''}`);
       const data = await response.json();
       if (data.success) {
         setGroups(data.data || []);
@@ -80,6 +86,43 @@ export default function CoordinatorGroupsPage() {
           >
             Create Group
           </Link>
+        </div>
+
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="semesterFilter" className="block text-sm font-medium text-[var(--ink)] mb-2">
+              Filter by Semester
+            </label>
+            <select
+              id="semesterFilter"
+              value={semesterFilter}
+              onChange={(event) => setSemesterFilter(event.target.value)}
+              className="w-full px-4 py-2 border border-[var(--paper3)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            >
+              <option value="">All semesters</option>
+              <option value="Semester 1">Semester 1</option>
+              <option value="Semester 2">Semester 2</option>
+              <option value="Semester 3">Semester 3</option>
+              <option value="Semester 4">Semester 4</option>
+              <option value="Semester 5">Semester 5</option>
+              <option value="Semester 6">Semester 6</option>
+              <option value="Semester 7">Semester 7</option>
+              <option value="Semester 8">Semester 8</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="academicYearFilter" className="block text-sm font-medium text-[var(--ink)] mb-2">
+              Filter by Academic Year
+            </label>
+            <input
+              id="academicYearFilter"
+              value={academicYearFilter}
+              onChange={(event) => setAcademicYearFilter(event.target.value)}
+              placeholder="e.g., 2026-2027"
+              className="w-full px-4 py-2 border border-[var(--paper3)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            />
+          </div>
         </div>
 
         {/* Groups List */}

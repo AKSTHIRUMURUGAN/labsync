@@ -13,11 +13,29 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const { searchParams } = new URL(request.url);
+    const semesterParam = searchParams.get('semester');
+    const yearParam = searchParams.get('year');
+
     const db = await getDatabase();
     const query: any = {
       role: 'student',
       active: true,
     };
+
+    if (semesterParam) {
+      const semester = Number(semesterParam);
+      if (Number.isInteger(semester) && semester >= 1 && semester <= 8) {
+        query.currentSemester = semester;
+      }
+    }
+
+    if (yearParam) {
+      const year = Number(yearParam);
+      if (Number.isInteger(year) && year >= 1 && year <= 4) {
+        query.currentYear = year;
+      }
+    }
 
     if (authResult.role !== 'principal') {
       if (!authResult.departmentId) {

@@ -141,10 +141,12 @@ export async function GET(request: NextRequest) {
               labGroupId: { $in: groupIds },
               createdAt: { $gte: startDate },
             },
-            { projection: { labGroupId: 1, conductedBy: 1, status: 1 } }
+            { projection: { labGroupId: 1, conductedBy: 1, status: 1, location: 1, startTime: 1, duration: 1, templateVersion: 1, experimentTemplateId: 1 } }
           )
           .toArray()
       : [];
+
+    const activeSessions = sessions.filter((session: any) => session.status === 'active');
 
     const sessionIds = sessions.map((session: any) => session._id);
 
@@ -166,13 +168,34 @@ export async function GET(request: NextRequest) {
       sessionToGroupMap.set(session._id.toString(), session.labGroupId.toString());
     });
 
+    const templateIds = Array.from(
+      new Set(
+        activeSessions
+          .map((session: any) => session.experimentTemplateId?.toString())
+          .filter(Boolean)
+      )
+    ).map((id) => new ObjectId(id));
+
+    const templates = templateIds.length
+      ? await db
+          .collection('experimentTemplates')
+          .find(
+            { _id: { $in: templateIds } },
+            { projection: { title: 1 } }
+          )
+          .toArray()
+      : [];
+
+    const templateTitleById = new Map<string, string>();
+    templates.forEach((template: any) => {
+      templateTitleById.set(template._id.toString(), template.title || 'Lab Experiment');
+    });
+
     const sessionsByGroup = new Map<string, number>();
     sessions.forEach((session: any) => {
       const key = session.labGroupId.toString();
       sessionsByGroup.set(key, (sessionsByGroup.get(key) || 0) + 1);
     });
-
-    const activeSessions = sessions.filter((session: any) => session.status === 'active').length;
 
     const submissionsByGroup = new Map<string, number>();
     const pendingByGroup = new Map<string, number>();
@@ -260,6 +283,27 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    const activeSessionDetails = activeSessions.map((session: any) => {
+      const groupId = session.labGroupId?.toString();
+      const group = groups.find((item: any) => item._id.toString() === groupId);
+      const templateId = session.experimentTemplateId?.toString();
+
+      return {
+        _id: session._id.toString(),
+        title: templateTitleById.get(templateId) || 'Lab Session',
+        groupName: group?.name || 'Unnamed Group',
+        className: group?.className || '',
+        semester: group?.semester || '',
+        academicYear: group?.academicYear || '',
+        facultyName: group?.facultyName || 'Not assigned',
+        departmentId: group?.departmentId?.toString() || authResult.departmentId || '',
+        location: session.location || 'Faculty lab section',
+        status: session.status || 'created',
+        startedAt: session.startTime || null,
+        duration: session.duration || 0,
+      };
+    });
+
     const totalGroups = groups.length;
     const totalFaculty = faculty.length;
     const groupsWithFaculty = groups.filter((group: any) => !!group.facultyId).length;
@@ -276,7 +320,7 @@ export async function GET(request: NextRequest) {
         groupsWithFaculty,
         groupsWithoutFaculty: Math.max(totalGroups - groupsWithFaculty, 0),
         totalSessions: sessions.length,
-        activeSessions,
+        activeSessions: activeSessions.length,
         totalSubmissions: submissions.length,
         pendingReviews: submittedCount,
         approvedSubmissions: approvedCount,
@@ -288,6 +332,7 @@ export async function GET(request: NextRequest) {
         approved: approvedCount,
         rejected: rejectedCount,
       },
+      activeSessions: activeSessionDetails,
       facultyPerformance,
       groupActivity,
     });

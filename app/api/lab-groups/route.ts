@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const departmentId = searchParams.get('departmentId');
     const active = searchParams.get('active');
+    const semester = searchParams.get('semester');
+    const academicYear = searchParams.get('academicYear');
 
     const db = await getDatabase();
     const query: any = {};
@@ -32,6 +34,14 @@ export async function GET(request: NextRequest) {
 
     if (active !== null) {
       query.active = active === 'true';
+    }
+
+    if (semester) {
+      query.semester = semester;
+    }
+
+    if (academicYear) {
+      query.academicYear = academicYear;
     }
 
     const skip = (page - 1) * limit;

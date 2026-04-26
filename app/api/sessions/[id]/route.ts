@@ -28,17 +28,37 @@ export async function GET(
       return notFoundError('Session not found');
     }
 
+    const labGroup = await db.collection('labGroups').findOne({ _id: new ObjectId(session.labGroupId) });
+    if (!labGroup) {
+      return notFoundError('Session not found');
+    }
+
     // If user is a student, verify they're enrolled in the session's lab group
     if (user.role === 'student') {
-      const labGroup = await db
-        .collection('labGroups')
-        .findOne({ 
-          _id: new ObjectId(session.labGroupId),
-          students: new ObjectId(user.userId)
-        });
+      const enrolled = Array.isArray((labGroup as any).students)
+        ? (labGroup as any).students.some((studentId: ObjectId) => studentId.toString() === user.userId)
+        : false;
 
-      if (!labGroup) {
+      if (!enrolled) {
         return notFoundError('You are not enrolled in this lab session');
+      }
+    }
+
+    if (user.role === 'lab_faculty') {
+      const assignedFaculty = (labGroup as any).facultyId?.toString() === user.userId;
+      const sameDepartment = user.departmentId
+        ? (labGroup as any).departmentId?.toString() === user.departmentId
+        : false;
+
+      if (!assignedFaculty || !sameDepartment) {
+        return notFoundError('Session not found');
+      }
+    }
+
+    if (user.role === 'hod' && user.departmentId) {
+      const sameDepartment = (labGroup as any).departmentId?.toString() === user.departmentId;
+      if (!sameDepartment) {
+        return notFoundError('Session not found');
       }
     }
 

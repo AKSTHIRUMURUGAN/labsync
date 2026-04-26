@@ -18,6 +18,8 @@ interface Student {
   lastName: string;
   enrollmentNumber: string;
   email: string;
+  currentSemester?: number;
+  currentYear?: number;
 }
 
 interface LabGroup {
@@ -43,6 +45,8 @@ export default function CoordinatorGroupDetailPage() {
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [studentSemesterFilter, setStudentSemesterFilter] = useState('');
+  const [studentYearFilter, setStudentYearFilter] = useState('');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [formData, setFormData] = useState({
     name: '',
@@ -58,18 +62,20 @@ export default function CoordinatorGroupDetailPage() {
     fetchData();
   }, [groupId]);
 
+  useEffect(() => {
+    fetchStudents();
+  }, [studentSemesterFilter, studentYearFilter]);
+
   const fetchData = async () => {
     try {
-      const [groupRes, facultyRes, studentsRes] = await Promise.all([
+      const [groupRes, facultyRes] = await Promise.all([
         fetch(`/api/lab-groups/${groupId}`),
         fetch('/api/coordinator/faculty'),
-        fetch('/api/coordinator/students'),
       ]);
 
-      const [groupData, facultyData, studentsData] = await Promise.all([
+      const [groupData, facultyData] = await Promise.all([
         groupRes.json(),
         facultyRes.json(),
-        studentsRes.json(),
       ]);
 
       if (groupData.success) {
@@ -94,20 +100,40 @@ export default function CoordinatorGroupDetailPage() {
         })));
       }
 
-      if (studentsData.success) {
-        setStudents((studentsData.data || []).map((item: any) => ({
-          _id: item._id?.toString() || '',
-          firstName: item.firstName || '',
-          lastName: item.lastName || '',
-          enrollmentNumber: item.enrollmentNumber || '',
-          email: item.email || '',
-        })));
-      }
+      await fetchStudents();
     } catch (error) {
       console.error('Failed to fetch lab group detail data', error);
       setErrors({ general: 'Failed to load group data' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const query = new URLSearchParams();
+      if (studentSemesterFilter) query.set('semester', studentSemesterFilter);
+      if (studentYearFilter) query.set('year', studentYearFilter);
+
+      const response = await fetch(`/api/coordinator/students${query.toString() ? `?${query.toString()}` : ''}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setStudents((data.data || []).map((item: any) => ({
+          _id: item._id?.toString() || '',
+          firstName: item.firstName || '',
+          lastName: item.lastName || '',
+          enrollmentNumber: item.enrollmentNumber || '',
+          email: item.email || '',
+          currentSemester: typeof item.currentSemester === 'number' ? item.currentSemester : undefined,
+          currentYear: typeof item.currentYear === 'number' ? item.currentYear : undefined,
+        })));
+      } else {
+        setStudents([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch students', error);
+      setStudents([]);
     }
   };
 
@@ -315,6 +341,48 @@ export default function CoordinatorGroupDetailPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label htmlFor="studentSemesterFilter" className="block text-sm font-medium text-[var(--ink)] mb-2">
+                    Filter by Semester
+                  </label>
+                  <select
+                    id="studentSemesterFilter"
+                    value={studentSemesterFilter}
+                    onChange={(event) => setStudentSemesterFilter(event.target.value)}
+                    className="w-full px-4 py-2 border border-[var(--paper3)] rounded-lg"
+                  >
+                    <option value="">All semesters</option>
+                    <option value="1">Semester 1</option>
+                    <option value="2">Semester 2</option>
+                    <option value="3">Semester 3</option>
+                    <option value="4">Semester 4</option>
+                    <option value="5">Semester 5</option>
+                    <option value="6">Semester 6</option>
+                    <option value="7">Semester 7</option>
+                    <option value="8">Semester 8</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="studentYearFilter" className="block text-sm font-medium text-[var(--ink)] mb-2">
+                    Filter by Year
+                  </label>
+                  <select
+                    id="studentYearFilter"
+                    value={studentYearFilter}
+                    onChange={(event) => setStudentYearFilter(event.target.value)}
+                    className="w-full px-4 py-2 border border-[var(--paper3)] rounded-lg"
+                  >
+                    <option value="">All years</option>
+                    <option value="1">Year 1</option>
+                    <option value="2">Year 2</option>
+                    <option value="3">Year 3</option>
+                    <option value="4">Year 4</option>
+                  </select>
+                </div>
+              </div>
+
               {importStatus && (
                 <div className="mb-3 rounded-lg border border-[var(--paper3)] bg-[var(--paper)] p-3 text-xs text-[var(--ink3)]">
                   Imported <span className="font-medium text-[var(--ink)]">{importStatus.fileName}</span>. Matched {importStatus.matched} student(s), {importStatus.unmatched} row(s) did not match.
@@ -338,6 +406,7 @@ export default function CoordinatorGroupDetailPage() {
                     <div>
                       <div className="text-[var(--ink)] font-medium">{student.firstName} {student.lastName}</div>
                       <div className="text-[var(--ink3)]">{student.enrollmentNumber || 'No enrollment number'} • {student.email}</div>
+                      <div className="text-xs text-[var(--ink3)]">Semester {student.currentSemester || '-'} • Year {student.currentYear || '-'}</div>
                     </div>
                   </label>
                 ))}

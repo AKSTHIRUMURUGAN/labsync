@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/middleware/auth-middleware';
 import { getDatabase } from '@/lib/mongodb';
 import { Submission } from '@/lib/models/Submission';
+import { LabSession } from '@/lib/models/LabSession';
 import { successResponse, notFoundError, forbiddenError, serverError } from '@/lib/api-response';
 import { ObjectId } from 'mongodb';
 
@@ -56,12 +57,36 @@ export async function GET(
       return notFoundError('Submission not found');
     }
 
+    const session = await db.collection<LabSession>('labSessions').findOne({ _id: submission.labSessionId });
+    const labGroup = session
+      ? await db.collection('labGroups').findOne({ _id: session.labGroupId })
+      : null;
+
     // Check permissions
     if (
       authResult.role === 'student' &&
       submission.studentId.toString() !== authResult.userId
     ) {
       return forbiddenError('Access denied');
+    }
+
+    if (authResult.role === 'lab_faculty') {
+      if (!authResult.departmentId || !labGroup) {
+        return forbiddenError('Access denied');
+      }
+
+      const sameDepartment = labGroup.departmentId?.toString() === authResult.departmentId;
+      const assignedFaculty = labGroup.facultyId?.toString() === authResult.userId;
+
+      if (!sameDepartment || !assignedFaculty) {
+        return forbiddenError('Access denied');
+      }
+    }
+
+    if (authResult.role === 'faculty_coordinator' || authResult.role === 'hod') {
+      if (!authResult.departmentId || !labGroup || labGroup.departmentId?.toString() !== authResult.departmentId) {
+        return forbiddenError('Access denied');
+      }
     }
 
     return successResponse(submission);
@@ -94,12 +119,36 @@ export async function PUT(
       return notFoundError('Submission not found');
     }
 
+    const session = await db.collection<LabSession>('labSessions').findOne({ _id: submission.labSessionId });
+    const labGroup = session
+      ? await db.collection('labGroups').findOne({ _id: session.labGroupId })
+      : null;
+
     // Check permissions
     if (
       authResult.role === 'student' &&
       submission.studentId.toString() !== authResult.userId
     ) {
       return forbiddenError('Access denied');
+    }
+
+    if (authResult.role === 'lab_faculty') {
+      if (!authResult.departmentId || !labGroup) {
+        return forbiddenError('Access denied');
+      }
+
+      const sameDepartment = labGroup.departmentId?.toString() === authResult.departmentId;
+      const assignedFaculty = labGroup.facultyId?.toString() === authResult.userId;
+
+      if (!sameDepartment || !assignedFaculty) {
+        return forbiddenError('Access denied');
+      }
+    }
+
+    if (authResult.role === 'faculty_coordinator' || authResult.role === 'hod') {
+      if (!authResult.departmentId || !labGroup || labGroup.departmentId?.toString() !== authResult.departmentId) {
+        return forbiddenError('Access denied');
+      }
     }
 
     // Cannot edit approved submissions

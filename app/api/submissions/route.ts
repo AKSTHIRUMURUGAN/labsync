@@ -22,9 +22,33 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get('studentId');
 
     const db = await getDatabase();
+
+    const groupQuery: any = { active: { $ne: false } };
+
+    if (authResult.role !== 'principal') {
+      if (!authResult.departmentId) {
+        return validationError({ departmentId: 'User department is not assigned' });
+      }
+      groupQuery.departmentId = new ObjectId(authResult.departmentId);
+    }
+
+    if (authResult.role === 'lab_faculty') {
+      groupQuery.facultyId = new ObjectId(authResult.userId);
+    }
+
+    const allowedGroups = await db.collection('labGroups').find(groupQuery, { projection: { _id: 1 } }).toArray();
+    const allowedGroupIds = allowedGroups.map((group: any) => group._id);
+
+    if (allowedGroupIds.length === 0 && authResult.role !== 'student') {
+      return successResponse([], { page, limit, total: 0 });
+    }
+
+    const allowedSessionIds = allowedGroupIds.length
+      ? (await db.collection('labSessions').find({ labGroupId: { $in: allowedGroupIds } }, { projection: { _id: 1 } }).toArray()).map((session: any) => session._id)
+      : [];
+
     const query: any = {};
 
-    // Students can only see their own submissions
     if (authResult.role === 'student') {
       query.studentId = new ObjectId(authResult.userId);
     } else if (studentId) {
@@ -36,7 +60,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (labSessionId) {
-      query.labSessionId = new ObjectId(labSessionId);
+      const requestedSessionId = new ObjectId(labSessionId);
+      if (allowedSessionIds.length > 0 && !allowedSessionIds.some((sessionId) => sessionId.toString() === requestedSessionId.toString())) {
+        return successResponse([], { page, limit, total: 0 });
+      }
+      query.labSessionId = requestedSessionId;
+    } else if (authResult.role !== 'student') {
+      query.labSessionId = { $in: allowedSessionIds };
     }
 
     const skip = (page - 1) * limit;

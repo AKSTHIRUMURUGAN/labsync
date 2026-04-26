@@ -17,6 +17,8 @@ interface Student {
   lastName: string;
   email: string;
   enrollmentNumber: string;
+  currentSemester?: number;
+  currentYear?: number;
 }
 
 export default function NewLabGroupPage() {
@@ -26,6 +28,8 @@ export default function NewLabGroupPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [departmentId, setDepartmentId] = useState<string>('');
+  const [studentSemesterFilter, setStudentSemesterFilter] = useState('');
+  const [studentYearFilter, setStudentYearFilter] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     className: '',
@@ -40,6 +44,10 @@ export default function NewLabGroupPage() {
     fetchFaculty();
     fetchStudents();
   }, []);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [studentSemesterFilter, studentYearFilter]);
   const fetchFaculty = async () => {
     try {
       const response = await fetch('/api/coordinator/faculty');
@@ -76,7 +84,11 @@ export default function NewLabGroupPage() {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch('/api/coordinator/students');
+      const query = new URLSearchParams();
+      if (studentSemesterFilter) query.set('semester', studentSemesterFilter);
+      if (studentYearFilter) query.set('year', studentYearFilter);
+
+      const response = await fetch(`/api/coordinator/students${query.toString() ? `?${query.toString()}` : ''}`);
       const data = await response.json();
       if (data.success && Array.isArray(data.data)) {
         const normalized = data.data.map((student: any) => ({
@@ -85,6 +97,8 @@ export default function NewLabGroupPage() {
           lastName: student.lastName || '',
           email: student.email || '',
           enrollmentNumber: student.enrollmentNumber || '',
+          currentSemester: typeof student.currentSemester === 'number' ? student.currentSemester : undefined,
+          currentYear: typeof student.currentYear === 'number' ? student.currentYear : undefined,
         }));
         setStudents(normalized);
       } else {
@@ -316,6 +330,48 @@ export default function NewLabGroupPage() {
           <div className="bg-white rounded-xl border border-[var(--paper3)] p-6">
             <h2 className="text-xl font-bold text-[var(--ink)] heading mb-4">Students</h2>
             <p className="text-sm text-[var(--ink3)] mb-4">Add students to this lab group (optional - can be added later)</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+              <div>
+                <label htmlFor="studentSemesterFilter" className="block text-sm font-medium text-[var(--ink)] mb-2">
+                  Filter by Semester
+                </label>
+                <select
+                  id="studentSemesterFilter"
+                  value={studentSemesterFilter}
+                  onChange={(event) => setStudentSemesterFilter(event.target.value)}
+                  className="w-full px-4 py-2 border border-[var(--paper3)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                >
+                  <option value="">All semesters</option>
+                  <option value="1">Semester 1</option>
+                  <option value="2">Semester 2</option>
+                  <option value="3">Semester 3</option>
+                  <option value="4">Semester 4</option>
+                  <option value="5">Semester 5</option>
+                  <option value="6">Semester 6</option>
+                  <option value="7">Semester 7</option>
+                  <option value="8">Semester 8</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="studentYearFilter" className="block text-sm font-medium text-[var(--ink)] mb-2">
+                  Filter by Year
+                </label>
+                <select
+                  id="studentYearFilter"
+                  value={studentYearFilter}
+                  onChange={(event) => setStudentYearFilter(event.target.value)}
+                  className="w-full px-4 py-2 border border-[var(--paper3)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                >
+                  <option value="">All years</option>
+                  <option value="1">Year 1</option>
+                  <option value="2">Year 2</option>
+                  <option value="3">Year 3</option>
+                  <option value="4">Year 4</option>
+                </select>
+              </div>
+            </div>
             
             {students.length === 0 ? (
               <p className="text-[var(--ink3)] text-center py-4">No students available. Students can be added later.</p>
@@ -337,6 +393,9 @@ export default function NewLabGroupPage() {
                       </div>
                       <div className="text-sm text-[var(--ink3)]">
                         {student.enrollmentNumber} • {student.email}
+                      </div>
+                      <div className="text-xs text-[var(--ink3)]">
+                        Semester {student.currentSemester || '-'} • Year {student.currentYear || '-'}
                       </div>
                     </div>
                   </label>

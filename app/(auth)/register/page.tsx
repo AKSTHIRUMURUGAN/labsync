@@ -24,6 +24,8 @@ export default function RegisterPage() {
     institutionId: '',
     departmentId: '',
     enrollmentNumber: '',
+    currentSemester: '',
+    currentYear: '',
     employeeId: '',
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -51,13 +53,29 @@ export default function RegisterPage() {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    if (name === 'currentSemester') {
+      const semesterNumber = Number(value);
+      const year = Number.isInteger(semesterNumber) && semesterNumber >= 1 && semesterNumber <= 8
+        ? Math.ceil(semesterNumber / 2).toString()
+        : '';
+
+      setFormData({
+        ...formData,
+        currentSemester: value,
+        currentYear: year,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      });
+    }
+
     // Clear error for this field
-    if (errors[e.target.name]) {
-      setErrors({ ...errors, [e.target.name]: '' });
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: '' });
     }
   };
 
@@ -77,6 +95,12 @@ export default function RegisterPage() {
     }
     if (formData.role !== 'principal' && !formData.departmentId.trim()) {
       newErrors.departmentId = 'Department is required';
+    }
+    if (formData.role === 'student') {
+      const semesterNumber = Number(formData.currentSemester);
+      if (!Number.isInteger(semesterNumber) || semesterNumber < 1 || semesterNumber > 8) {
+        newErrors.currentSemester = 'Select semester between 1 and 8';
+      }
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -98,6 +122,7 @@ export default function RegisterPage() {
           institutionId: formData.institutionId || '507f1f77bcf86cd799439011', // Default institution ID
           departmentId: formData.departmentId || undefined,
           enrollmentNumber: formData.role === 'student' ? formData.enrollmentNumber : undefined,
+          currentSemester: formData.role === 'student' ? Number(formData.currentSemester) : undefined,
           employeeId: formData.role !== 'student' ? formData.employeeId : undefined,
         }),
       });
@@ -332,19 +357,65 @@ export default function RegisterPage() {
 
             {/* Conditional Fields */}
             {formData.role === 'student' && (
-              <div>
-                <label htmlFor="enrollmentNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                  Enrollment Number
-                </label>
-                <input
-                  type="text"
-                  id="enrollmentNumber"
-                  name="enrollmentNumber"
-                  value={formData.enrollmentNumber}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                  placeholder="STU001"
-                />
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="enrollmentNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                    Enrollment Number
+                  </label>
+                  <input
+                    type="text"
+                    id="enrollmentNumber"
+                    name="enrollmentNumber"
+                    value={formData.enrollmentNumber}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                    placeholder="STU001"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="currentSemester" className="block text-sm font-medium text-gray-700 mb-1">
+                      Semester *
+                    </label>
+                    <select
+                      id="currentSemester"
+                      name="currentSemester"
+                      value={formData.currentSemester}
+                      onChange={handleChange}
+                      required
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white ${
+                        errors.currentSemester ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">Select semester</option>
+                      <option value="1">Semester 1</option>
+                      <option value="2">Semester 2</option>
+                      <option value="3">Semester 3</option>
+                      <option value="4">Semester 4</option>
+                      <option value="5">Semester 5</option>
+                      <option value="6">Semester 6</option>
+                      <option value="7">Semester 7</option>
+                      <option value="8">Semester 8</option>
+                    </select>
+                    {errors.currentSemester && <p className="mt-1 text-sm text-red-600">{errors.currentSemester}</p>}
+                  </div>
+
+                  <div>
+                    <label htmlFor="currentYear" className="block text-sm font-medium text-gray-700 mb-1">
+                      Year (Auto)
+                    </label>
+                    <input
+                      type="text"
+                      id="currentYear"
+                      name="currentYear"
+                      value={formData.currentYear ? `Year ${formData.currentYear}` : ''}
+                      readOnly
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                      placeholder="Auto from semester"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 

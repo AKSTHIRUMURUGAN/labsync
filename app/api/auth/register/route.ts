@@ -8,7 +8,7 @@ import { ObjectId } from 'mongodb';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, firstName, lastName, role, institutionId, departmentId, enrollmentNumber, employeeId } = body;
+    const { email, password, firstName, lastName, role, institutionId, departmentId, enrollmentNumber, employeeId, currentSemester } = body;
 
     // Validation
     const errors: { [key: string]: string } = {};
@@ -24,6 +24,15 @@ export async function POST(request: NextRequest) {
     }
     if (departmentId && !ObjectId.isValid(departmentId)) {
       errors.departmentId = 'Invalid department ID';
+    }
+
+    const parsedSemester = typeof currentSemester === 'number' ? currentSemester : Number(currentSemester);
+    if (role === 'student') {
+      if (!Number.isInteger(parsedSemester)) {
+        errors.currentSemester = 'Semester is required for students';
+      } else if (parsedSemester < 1 || parsedSemester > 8) {
+        errors.currentSemester = 'Semester must be between 1 and 8';
+      }
     }
 
     // Email validation
@@ -74,6 +83,8 @@ export async function POST(request: NextRequest) {
     const passwordHash = await hashPassword(password);
 
     // Create user
+    const derivedYear = Number.isInteger(parsedSemester) ? Math.ceil(parsedSemester / 2) : undefined;
+
     const user: User = {
       email: email.toLowerCase(),
       passwordHash,
@@ -83,6 +94,8 @@ export async function POST(request: NextRequest) {
       institutionId: new ObjectId(institutionId),
       departmentId: departmentId ? new ObjectId(departmentId) : undefined,
       enrollmentNumber,
+      currentSemester: role === 'student' ? parsedSemester : undefined,
+      currentYear: role === 'student' ? derivedYear : undefined,
       employeeId,
       active: true,
       createdAt: new Date(),
@@ -109,6 +122,8 @@ export async function POST(request: NextRequest) {
         role: user.role,
         firstName: user.firstName,
         lastName: user.lastName,
+        currentSemester: user.currentSemester,
+        currentYear: user.currentYear,
       },
       token,
     });

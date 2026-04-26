@@ -8,6 +8,11 @@ interface Session {
   _id: string;
   labGroupId: string;
   experimentTemplateId: string;
+  templateTitle?: string;
+  groupName?: string;
+  className?: string;
+  semester?: string;
+  academicYear?: string;
   status: 'created' | 'active' | 'ended';
   startTime: string;
   endTime?: string;
@@ -159,12 +164,15 @@ export default function FacultySessionsPage() {
                     {getStatusLabel(session.status)}
                   </span>
                 </div>
-                <h3 className="text-xl font-bold text-[var(--ink)] heading mb-2">Lab Session</h3>
+                <h3 className="text-xl font-bold text-[var(--ink)] heading mb-2">{session.templateTitle || 'Lab Session'}</h3>
                 <div className="text-sm text-[var(--ink3)] space-y-1 mb-4">
+                  <p>Group: {session.groupName || 'Not specified'}</p>
+                  <p>Class: {session.className || 'Not specified'}</p>
+                  <p>Semester: {session.semester || 'Not specified'}</p>
                   <p>Date: {new Date(session.startTime).toLocaleDateString()}</p>
                   <p>Started: {new Date(session.startTime).toLocaleTimeString()}</p>
                   {session.endTime && <p>Ended: {new Date(session.endTime).toLocaleTimeString()}</p>}
-                  {session.location && <p>Location: {session.location}</p>}
+                  <p>Faculty Lab Section: {session.location || 'Not specified'}</p>
                   <p>Duration: {session.duration} minutes</p>
                 </div>
                 <div className="flex gap-2">
